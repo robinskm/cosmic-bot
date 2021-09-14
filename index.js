@@ -1,12 +1,13 @@
 const Discord = require("discord.js");
-const {
-  prefix, token
-} = require("./config.json");
+// const {
+//   prefix, token
+// } = require("./config.json");
+const prefix = "-";
 const ytdl = require("ytdl-core");
 const search = require('yt-search');
 
 
-// const token = process.env['COSMIC_BOT_TOKEN'];
+const token = process.env['COSMIC_BOT_TOKEN'];
 const client = new Discord.Client();
 
 const queue = new Map();
