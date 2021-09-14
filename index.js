@@ -3,11 +3,10 @@ const Discord = require("discord.js");
 //   prefix, token
 // } = require("./config.json");
 const prefix = "-";
+const token = process.env['COSMIC_BOT_TOKEN'];
 const ytdl = require("ytdl-core");
 const search = require('yt-search');
 
-
-const token = process.env['COSMIC_BOT_TOKEN'];
 const client = new Discord.Client();
 
 const queue = new Map();
@@ -32,6 +31,10 @@ client.on("message", async message => {
 
   if (message.content.startsWith(`${prefix}brownies`)) {
     message.channel.send('d e c o s m i c \' d');
+  } else if (message.content.startsWith(`${prefix}guildmaster`)) {
+    message.channel.send('Guildmasther pleath, lawd have merthy 😩💦');
+  } else if (message.content.startsWith(`${prefix}die`)) {
+    message.channel.send('No u 👉🏼😎👉🏼');
   } else if (message.content.startsWith(`${prefix}play`) || message.content.startsWith(`${prefix}p `)) {
     execute(message, serverQueue);
     return;
@@ -42,12 +45,21 @@ client.on("message", async message => {
     stop(message, serverQueue);
     return;
   } else if (message.content.startsWith(`${prefix}help`)) {
-    const embed = new Discord.MessageEmbed()
+    const commandsEmbed = new Discord.MessageEmbed()
       .setTitle('Commands List')
       .setColor('#D09CFF')
       .setThumbnail('https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/be21784c-ba2a-4df4-bdd8-b5568ea11ec8/dbjo53q-4683aad4-5549-4d28-ab4c-64f4bfc6a309.gif?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7InBhdGgiOiJcL2ZcL2JlMjE3ODRjLWJhMmEtNGRmNC1iZGQ4LWI1NTY4ZWExMWVjOFwvZGJqbzUzcS00NjgzYWFkNC01NTQ5LTRkMjgtYWI0Yy02NGY0YmZjNmEzMDkuZ2lmIn1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmZpbGUuZG93bmxvYWQiXX0.8s-9vXfdIbwONFVQQ3wMsIeJfFRdkiPwbr2d-jk2tt8')
-      .setDescription('\n**-play** : plays a YouTube URL\n**-p** : plays a YouTube URL\n**-skip** : skips a song in queue\n**-decosmic** : stops a song and disconnects the bot\n**-stop** : stops a song and disconnects the bot\n**-brownies** : you\'re asking for it\n**-help** : read this shit again');
-    message.channel.send(embed);
+      .setDescription('\n**-play** : plays a song from YouTube\n**-p** : plays a song from YouTube\n**-skip** : skips a song in queue\n**-decosmic** : stops a song and disconnects the bot\n**-stop** : stops a song and disconnects the bot\n**-brownies** : you\'re asking for it\n**-guildmaster** : Pleathhh\n**-pineapple** : displays a pineapple being eaten\n**-help** : read this shit again');
+    message.channel.send(commandsEmbed);
+  } else if (message.content.startsWith(`${prefix}pineapple`)) {
+    const pineappleEmbedFile = new Discord.MessageAttachment('./img/pineapple.jpg');
+    const pineappleEmbed = new Discord.MessageEmbed()
+      .setTitle('Some title')
+      .setImage('./img/pineapple.jpg');
+    message.channel.send({
+      embeds: [pineappleEmbed],
+      files: [pineappleEmbedFile]
+    });
   } else {
     message.channel.send("I dunno what that means.\nNeed help? Type **-help**");
   }
