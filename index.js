@@ -60,6 +60,15 @@ client.on("message", async message => {
       embeds: [pineappleEmbed],
       files: [pineappleEmbedFile]
     });
+  } else if (message.content.startsWith(`${prefix}yeyur`)) {
+    const yeyurEmbedFile = new Discord.MessageAttachment('./img/yeyur.jpg');
+    const yeyurEmbed = new Discord.MessageEmbed()
+      .setTitle('Some title')
+      .setImage('./img/yeyur.jpg');
+    message.channel.send({
+      embeds: [yeyurEmbed],
+      files: [yeyurEmbedFile]
+    });
   } else {
     message.channel.send("I dunno what that means.\nNeed help? Type **-help**");
   }
