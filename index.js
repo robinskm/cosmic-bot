@@ -70,11 +70,32 @@ async function execute(message, serverQueue) {
     );
   }
 
-  const songInfo = await ytdl.getInfo(args[1]);
-  const song = {
-    title: songInfo.videoDetails.title,
-    url: songInfo.videoDetails.video_url,
-  };
+  //if a YouTube URL
+  let song = {}
+  if (ytdl.validateURL(args[0])) {
+    const songInfo = await ytdl.getInfo(args[1]);
+    song = {
+      title: songInfo.videoDetails.title,
+      url: songInfo.videoDetails.video_url,
+    };
+  } else { // otherwise find a vid and play the first result
+    const video_finder = async(query)=> {
+      const videoResult = await search(query);
+      return (videoResult.videos.length > 1) ? videoResult.videos[0] : null;
+    }
+    const video = await video_finder(args.join(' '));
+    if (video) {
+      song = {
+        title: video.title,
+        url: video.url,
+      };
+    } else {
+      return message.channel.send(
+        "Sorry, I couldn't find a video."
+      );
+    }
+  }
+    
 
   if (!serverQueue) {
     const queueContruct = {
@@ -133,13 +154,11 @@ function play(guild, song) {
   if (!song) {
     serverQueue.voiceChannel.leave();
     queue.delete(guild.id);
-    return;
+    return; 
   }
 
   const dispatcher = serverQueue.connection
-    .play(ytdl(song.url, {
-      filter: 'audioonly'
-    }))
+    .play(ytdl(song.url, { filter: 'audioonly' }))
     .on("finish", () => {
       serverQueue.songs.shift();
       play(guild, serverQueue.songs[0]);
