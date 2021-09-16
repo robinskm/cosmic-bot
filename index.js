@@ -45,7 +45,7 @@ client.on("message", async message => {
     stop(message, serverQueue);
     return;
   } else if (message.content.startsWith(`${prefix}decosmic`)) {
-    execute(message, serverQueue);
+    decosmic(message, serverQueue);
     return;
   } else if (message.content.startsWith(`${prefix}help`)) {
     const commandsEmbed = new Discord.MessageEmbed()
@@ -198,15 +198,8 @@ function stop(message, serverQueue) {
   return message.channel.send(stopping);
 }
 
-function decosmic(message, serverQueue, guild) {
-  if (!message.member.voice.channel)
-    return message.channel.send(
-      "You have to be in a voice channel to stop the music!"
-    );
-
-  // if (!serverQueue)
-  serverQueue = queue.get(guild.id);
-  serverQueue.voiceChannel.leave();
+function decosmic(message, guild) {
+  message.guild.me.voice.channel.leave();
   queue.delete(guild.id);
   return message.channel.send(`baiii`);
 }
