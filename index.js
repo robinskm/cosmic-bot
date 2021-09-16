@@ -30,9 +30,18 @@ client.on("message", async message => {
   const serverQueue = queue.get(message.guild.id);
 
   if (message.content.startsWith(`${prefix}brownies`)) {
-    message.channel.send('d e c o s m i c \' d');
+    const brownies = new Discord.MessageEmbed()
+      .setDescription('*d e c o s m i c \' d*')
+      .setColor('#D09CFF');
+    message.channel.send(brownies);
   } else if (message.content.startsWith(`${prefix}guildmaster`)) {
-    message.channel.send('Guildmasther pleath, lawd have merthy 😩💦');
+    const guildmasterEmbedFile = new Discord.MessageAttachment('./img/guildmaster.jpg');
+    const guildmaster = new Discord.MessageEmbed()
+      .attachFiles(guildmasterEmbedFile)
+      .setDescription(`*Guildmasther pleath, lawd have merthy  😩💦*`)
+      .setImage('attachment://guildmaster.jpg')
+      .setColor('#FF908B');
+    message.channel.send(guildmaster);
   } else if (message.content.startsWith(`${prefix}die`)) {
     message.channel.send('No u 👉🏼😎👉🏼');
   } else if (message.content.startsWith(`${prefix}play`) || message.content.startsWith(`${prefix}p `)) {
@@ -56,31 +65,25 @@ client.on("message", async message => {
     message.channel.send(commandsEmbed);
   } else if (message.content.startsWith(`${prefix}pineapple`)) {
     const pineappleEmbedFile = new Discord.MessageAttachment('./img/pineapple.jpg');
-    const pineappleEmbed = new Discord.MessageEmbed()
-      .setTitle('Some title')
-      .setImage('./img/pineapple.jpg');
-    message.channel.send({
-      embeds: [pineappleEmbed],
-      files: [pineappleEmbedFile]
-    });
-  }  else if (message.content.startsWith(`${prefix}dripless`)) {
+    const pineapple = new Discord.MessageEmbed()
+      .attachFiles(pineappleEmbedFile)
+      .setImage('attachment://pineapple.jpg')
+      .setColor('#7C47DE');
+    message.channel.send(pineapple);
+  } else if (message.content.startsWith(`${prefix}dripless`)) {
     const driplessEmbedFile = new Discord.MessageAttachment('./img/dripless.jpg');
-    const driplessEmbed = new Discord.MessageEmbed()
-      .setTitle('Some title')
-      .setImage('./img/dripless.jpg');
-    message.channel.send({
-      embeds: [driplessEmbed],
-      files: [driplessEmbedFile]
-    });
+    const dripless = new Discord.MessageEmbed()
+      .attachFiles(driplessEmbedFile)
+      .setImage('attachment://dripless.jpg')
+      .setColor('#DE0D0D');
+    message.channel.send(dripless);
   } else if (message.content.startsWith(`${prefix}yeyur`)) {
-    const yeyurEmbedFile = new Discord.MessageAttachment('./img/yeyur.jpg');
-    const yeyurEmbed = new Discord.MessageEmbed()
-      .setTitle('Some title')
-      .setImage('./img/yeyur.jpg');
-    message.channel.send({
-      embeds: [yeyurEmbed],
-      files: [yeyurEmbedFile]
-    });
+    const yeyurEmbedFile = new Discord.MessageAttachment('./img/yeyur/yeyur.jpg');
+    const yeyur = new Discord.MessageEmbed()
+      .attachFiles(yeyurEmbedFile)
+      .setImage('attachment://yeyur.jpg')
+      .setColor('#1BCCE8');
+    message.channel.send(yeyur);
   } else {
     message.channel.send("I dunno what that means.\nNeed help? Type **-help**");
   }
@@ -133,11 +136,15 @@ async function execute(message, serverQueue) {
       };
     } else {
       if (message.content === '-decosmic') {
-        return message.channel.send(`👋🏽 baiii`);
+        const decosmic = new Discord.MessageEmbed()
+          .setDescription(`👋🏼 Baiii `)
+          .setColor('#D09CFF');
+        return message.channel.send(decosmic);
       } else {
-        return message.channel.send(
-          "Sorry, I couldn't find a video."
-        );
+        const noVid = new Discord.MessageEmbed()
+          .setDescription(`Sorry, I couldn't find anything to play!`)
+          .setColor('#D09CFF');
+        return message.channel.send(noVid);
       }
     }
   }
@@ -164,53 +171,60 @@ async function execute(message, serverQueue) {
     }
   } else {
     const queueing = new Discord.MessageEmbed()
-      .setTitle(`📌 Queuein' up: **${song.title}**`)
-      .setColor('#F3E589');
+      .setTitle(`📌 Queuein' up`)
+      .setColor('#4FDFED')
+      .setDescription(`${song.title}`);
     serverQueue.songs.push(song);
     return message.channel.send(queueing );
   }
 }
 
 function skip(message, serverQueue) {
+  const voiceChannelMessage = new Discord.MessageEmbed()
+  .setDescription(`You have to be in a voice channel to skip!`)
+  .setColor('#D09CFF');
+  const skip = new Discord.MessageEmbed()
+    .setDescription(`There wasn't a song I could skip!`)
+    .setColor('#D09CFF');
   if (!message.member.voice.channel)
-    return message.channel.send(
-      "You have to be in a voice channel to stop the music!"
-    );
+    return message.channel.send(voiceChannelMessage);
   if (!serverQueue)
-    return message.channel.send("There is no song that I could skip!");
+    return message.channel.send(skip);
   serverQueue.connection.dispatcher.end();
 }
 
 function stop(message, serverQueue) {
+  const voiceChannelMessage = new Discord.MessageEmbed()
+    .setDescription(`You have to be in a voice channel to stop!`)
+    .setColor('#D09CFF');
   const stopping = new Discord.MessageEmbed()
-    .setTitle(`🛑 song stopped, queue cleared`)
-    .setColor('#D83924');
+    .setDescription(`Song stopped, queue cleared`)
+    .setColor('#D09CFF');
+  const noStop = new Discord.MessageEmbed()
+    .setDescription(`There wasn't a song I could stop!`)
+    .setColor('#D09CFF');
   if (!message.member.voice.channel)
-    return message.channel.send(
-      "You have to be in a voice channel to stop the music!"
-    );
+    return message.channel.send(voiceChannelMessage);
 
   if (!serverQueue)
-    return message.channel.send("There is no song that I could stop!");
+    return message.channel.send(noStop);
 
   serverQueue.songs = [];
   serverQueue.connection.dispatcher.end();
   return message.channel.send(stopping);
 }
 
-function decosmic(message, guild) {
+function decosmic(message) {
+  const decosmic = new Discord.MessageEmbed()
+    .setDescription(`👋🏼 Baiii`)
+    .setColor('#D09CFF');
   message.guild.me.voice.channel.leave();
-  queue.delete(guild.id);
-  return message.channel.send(`baiii`);
+  return message.channel.send(decosmic);
 }
 
 function play(guild, song) {
   const serverQueue = queue.get(guild.id);
-  const playing = new Discord.MessageEmbed()
-    .setTitle(`🎶 Startin' up: ${song.title}`)
-    .setColor('#89F3AD');
   if (!song) {
-    // serverQueue.voiceChannel.leave();
     queue.delete(guild.id);
     return; 
   }
@@ -223,6 +237,10 @@ function play(guild, song) {
     })
     .on("error", error => console.error(error));
   dispatcher.setVolumeLogarithmic(serverQueue.volume / 5);
+  const playing = new Discord.MessageEmbed()
+    .setTitle(`🎶 Now Playing 🎶 `)
+    .setColor('#79E676')
+    .setDescription(`${song.title}`);
   serverQueue.textChannel.send(playing);
 }
 
