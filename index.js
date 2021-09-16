@@ -1,9 +1,9 @@
 const Discord = require("discord.js");
-// const {
-//   prefix, token
-// } = require("./config.json");
-const prefix = "-";
-const token = process.env['COSMIC_BOT_TOKEN'];
+const {
+  prefix, token
+} = require("./config.json");
+// const prefix = "-";
+// const token = process.env['COSMIC_BOT_TOKEN'];
 const ytdl = require("ytdl-core");
 const search = require('yt-search');
 
@@ -41,7 +41,10 @@ client.on("message", async message => {
   } else if (message.content.startsWith(`${prefix}skip`)) {
     skip(message, serverQueue);
     return;
-  } else if (message.content.startsWith(`${prefix}stop`) || message.content.startsWith(`${prefix}decosmic`)) {
+  } else if (message.content.startsWith(`${prefix}decosmic`)) {
+    decosmic(message, serverQueue);
+    return;
+  } else if (message.content.startsWith(`${prefix}stop`)) {
     stop(message, serverQueue);
     return;
   } else if (message.content.startsWith(`${prefix}help`)) {
@@ -49,7 +52,7 @@ client.on("message", async message => {
       .setTitle('Commands List')
       .setColor('#D09CFF')
       .setThumbnail('https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/be21784c-ba2a-4df4-bdd8-b5568ea11ec8/dbjo53q-4683aad4-5549-4d28-ab4c-64f4bfc6a309.gif?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7InBhdGgiOiJcL2ZcL2JlMjE3ODRjLWJhMmEtNGRmNC1iZGQ4LWI1NTY4ZWExMWVjOFwvZGJqbzUzcS00NjgzYWFkNC01NTQ5LTRkMjgtYWI0Yy02NGY0YmZjNmEzMDkuZ2lmIn1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmZpbGUuZG93bmxvYWQiXX0.8s-9vXfdIbwONFVQQ3wMsIeJfFRdkiPwbr2d-jk2tt8')
-      .setDescription('\n**-play** : plays a song from YouTube\n**-p** : plays a song from YouTube\n**-skip** : skips a song in queue\n**-decosmic** : stops a song and disconnects the bot\n**-stop** : stops a song and disconnects the bot\n**-brownies** : you\'re asking for it\n**-guildmaster** : pleathhh\n**-pineapple** : displays a pineapple being eaten\n**-yeyur** : displays a man drunk on a toilet\n**-help** : read this shit again');
+      .setDescription('\n**-play** : plays a song from YouTube\n**-p** : plays a song from YouTube\n**-skip** : skips a song in queue\n**-decosmic** : disconnects the bot\n**-stop** : stops a song\n**-brownies** : you\'re asking for it\n**-guildmaster** : pleathhh\n**-pineapple** : displays a pineapple being eaten\n**-yeyur** : displays a man drunk on a toilet\n**-help** : read this shit again');
     message.channel.send(commandsEmbed);
   } else if (message.content.startsWith(`${prefix}pineapple`)) {
     const pineappleEmbedFile = new Discord.MessageAttachment('./img/pineapple.jpg');
@@ -154,7 +157,7 @@ function skip(message, serverQueue) {
     );
   if (!serverQueue)
     return message.channel.send("There is no song that I could skip!");
-  serverQueue.connection.dispatcher.end();
+  // serverQueue.connection.dispatcher.end();
 }
 
 function stop(message, serverQueue) {
@@ -167,6 +170,12 @@ function stop(message, serverQueue) {
     return message.channel.send("There is no song that I could stop!");
 
   serverQueue.songs = [];
+}
+function decosmic(message, serverQueue) {
+  if (!message.member.voice.channel)
+    return message.channel.send(
+      "You have to be in a voice channel to stop the music!"
+    );
   serverQueue.connection.dispatcher.end();
 }
 
