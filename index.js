@@ -52,7 +52,7 @@ client.on("message", async message => {
       .setTitle('Commands List')
       .setColor('#D09CFF')
       .setThumbnail('https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/be21784c-ba2a-4df4-bdd8-b5568ea11ec8/dbjo53q-4683aad4-5549-4d28-ab4c-64f4bfc6a309.gif?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7InBhdGgiOiJcL2ZcL2JlMjE3ODRjLWJhMmEtNGRmNC1iZGQ4LWI1NTY4ZWExMWVjOFwvZGJqbzUzcS00NjgzYWFkNC01NTQ5LTRkMjgtYWI0Yy02NGY0YmZjNmEzMDkuZ2lmIn1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmZpbGUuZG93bmxvYWQiXX0.8s-9vXfdIbwONFVQQ3wMsIeJfFRdkiPwbr2d-jk2tt8')
-      .setDescription('\n**-brownies** : you\'re asking for it\n**-decosmic** : disconnects the bot\n**-dripless** : displays a dripless beetch\n**-guildmaster** : pleathhh\n**-p** : plays a song from YouTube\n**-help** : read this shit again\n**-pineapple** : displays a pineapple being eaten\n**-play** : plays a song from YouTube\n**-skip** : skips a song in queue\n**-next** : skips a song in queue\n**-stop** : stops the bot and clears the queue\n**-yeyur** : displays a man drunk on a toilet\n');
+      .setDescription('\n**-brownies** : you\'re asking for it\n**-decosmic** : disconnects the bot\n**-dripless** : displays a dripless beetch\n**-guildmaster** : pleathhh\n**-help** : read this shit again\n**-p** : plays a song from YouTube\n**-play** : plays a song from YouTube\n**-pineapple** : displays a pineapple being eaten\n**-skip** : skips a song in queue\n**-next** : skips a song in queue\n**-stop** : stops the bot and clears the queue\n**-yeyur** : displays a man drunk on a toilet\n');
     message.channel.send(commandsEmbed);
   } else if (message.content.startsWith(`${prefix}pineapple`)) {
     const pineappleEmbedFile = new Discord.MessageAttachment('./img/pineapple.jpg');
@@ -163,8 +163,11 @@ async function execute(message, serverQueue) {
       return message.channel.send(err);
     }
   } else {
+    const queueing = new Discord.MessageEmbed()
+      .setTitle(`📌 Queuein' up: **${song.title}**`)
+      .setColor('#F3E589');
     serverQueue.songs.push(song);
-    return message.channel.send(`📌 Queuein' up: **${song.title}**`);
+    return message.channel.send(queueing );
   }
 }
 
@@ -179,6 +182,9 @@ function skip(message, serverQueue) {
 }
 
 function stop(message, serverQueue) {
+  const stopping = new Discord.MessageEmbed()
+    .setTitle(`🛑 song stopped, queue cleared`)
+    .setColor('#D83924');
   if (!message.member.voice.channel)
     return message.channel.send(
       "You have to be in a voice channel to stop the music!"
@@ -189,7 +195,7 @@ function stop(message, serverQueue) {
 
   serverQueue.songs = [];
   serverQueue.connection.dispatcher.end();
-  return message.channel.send(`🛑 song stopped, queue cleared`);
+  return message.channel.send(stopping);
 }
 
 function decosmic(message, serverQueue, guild) {
@@ -208,8 +214,8 @@ function decosmic(message, serverQueue, guild) {
 function play(guild, song) {
   const serverQueue = queue.get(guild.id);
   const playing = new Discord.MessageEmbed()
-    .setTitle(`🎶 Startin' up: **${song.title}**`)
-    .setColor('#D09CFF');
+    .setTitle(`🎶 Startin' up: ${song.title}`)
+    .setColor('#89F3AD');
   if (!song) {
     // serverQueue.voiceChannel.leave();
     queue.delete(guild.id);
