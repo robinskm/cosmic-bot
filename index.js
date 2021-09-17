@@ -4,10 +4,10 @@ const ytdl = require('ytdl-core');
 const search = require('yt-search');
 
 // token and prefix
-// const prefix = '-';
-// const token = process.env['COSMIC_BOT_TOKEN'];
+const prefix = '-';
+const token = process.env['COSMIC_BOT_TOKEN'];
 
-const { prefix, token } = require('./config.json');
+//const { prefix, token } = require('./config.json');
 
 const client = new Discord.Client();
 const queue = new Map();
