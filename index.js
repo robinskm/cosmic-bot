@@ -1,16 +1,19 @@
 // core & third-party modules
 const Discord = require('discord.js');
 const ytdl = require('ytdl-core');
+const ytpl = require('ytpl');
 const search = require('yt-search');
 
 // token and prefix
 const prefix = '-';
 const token = process.env['COSMIC_BOT_TOKEN'];
 
-//const { prefix, token } = require('./config.json');
+// const { prefix, token } = require('./config.json');
 
 const client = new Discord.Client();
 const queue = new Map();
+
+let timeoutID;
 
 // const commands = require('./commands/*');
 
@@ -32,6 +35,9 @@ client.on('voiceStateUpdate', (oldState, newState) => {
   // check if the bot is disconnecting
   if (newState.id !== client.user.id) return;
   // clear the queue
+  // reset disconnect timer
+  clearTimeout(timeoutID)
+  timeoutID = undefined
   return queue.delete(oldState.guild.id);
 });
 
@@ -59,18 +65,46 @@ client.on('message', async message => {
       .setDescription('*No u* 👉🏼😎👉🏼')
       .setColor('#D09CFF');
     message.channel.send(die);
-  } else if (message.content.startsWith(`${prefix}play`) || message.content.startsWith(`${prefix}p `)) {
+  } else if (message.content.startsWith(`${prefix}play`) || message.content.startsWith(`${prefix}p `) || message.content.startsWith(`${prefix}P `)) {
     execute(message, serverQueue);
     return;
   } else if (message.content.startsWith(`${prefix}skip`) || message.content.startsWith(`${prefix}next`)) {
-    skip(message, serverQueue);
-    return;
+    const voiceChannelMessage = new Discord.MessageEmbed()
+      .setDescription(`You have to be in a voice channel to skip!`)
+      .setColor('#D09CFF');
+    const skip = new Discord.MessageEmbed()
+      .setDescription(`There wasn't a song I could skip!`)
+      .setColor('#D09CFF');
+    if (!message.member.voice.channel)
+      return message.channel.send(voiceChannelMessage);
+    if (!serverQueue)
+      return message.channel.send(skip);
+    serverQueue.connection.dispatcher.end();
   } else if (message.content.startsWith(`${prefix}stop`)) {
-    stop(message, serverQueue);
-    return;
+    const voiceChannelMessage = new Discord.MessageEmbed()
+      .setDescription(`You have to be in a voice channel to stop!`)
+      .setColor('#D09CFF');
+    const stopping = new Discord.MessageEmbed()
+      .setDescription(`*Song stopped, queue cleared*`)
+      .setColor('#D09CFF');
+    const noStop = new Discord.MessageEmbed()
+      .setDescription(`There wasn't a song I could stop!`)
+      .setColor('#D09CFF');
+    if (!message.member.voice.channel)
+      return message.channel.send(voiceChannelMessage);
+
+    if (!serverQueue)
+      return message.channel.send(noStop);
+
+    serverQueue.songs = [];
+    serverQueue.connection.dispatcher.end();
+    return message.channel.send(stopping);
   } else if (message.content.startsWith(`${prefix}decosmic`)) {
-    decosmic(message, serverQueue);
-    return;
+    const decosmic = new Discord.MessageEmbed()
+      .setDescription(`👋🏼 *baiii*`)
+      .setColor('#D09CFF');
+    message.guild.me.voice.channel.leave();
+    return message.channel.send(decosmic);
   } else if (message.content.startsWith(`${prefix}help`)) {
     const commandsEmbed = new Discord.MessageEmbed()
       .setTitle('*c o m m a n d s*')
@@ -113,12 +147,12 @@ client.on('message', async message => {
 
 async function execute(message, serverQueue) {
   const args = message.content.split(' ');
-  // TODO: checks if args is present before we can replace
+  // checks if args is present before we can replace
   const url = args[1] ? args[1].replace(/<(.+)>/g, '$1') : '';
   const voiceChannel = message.member.voice.channel;
   const permissions = voiceChannel.permissionsFor(message.client.user);
-  const author = message.member.displayName;
-  const avatar = message.author.avatarURL();
+  let author = message.member.displayName;
+  let avatar = message.author.avatarURL();
 
   message.channel.send(voiceChannel);
 
@@ -134,40 +168,45 @@ async function execute(message, serverQueue) {
     );
   }
   let song = {}
-  if(url.match('playlist')) {
-    return message.channel.send(
-      'thanks for the playlist URL'
-    );
-  } else{//if a YouTube URL
-  if (ytdl.validateURL(url)) {
-    const songInfo = await ytdl.getInfo(url);
-    song = {
-      title: songInfo.videoDetails.title,
-      url: songInfo.videoDetails.video_url,
-    };
-  } else { // otherwise search YT and play the first result
-    const video_finder = async(query)=> {
-      const videoResult = await search(query);
-      return (videoResult.videos.length > 1) ? videoResult.videos[0] : null;
-    }
-    const video = await video_finder(args.join(' '));
-    if (video) {
+  
+  // check to see if we're a playlist
+  if(url.match(/playlist(.*)$/)) {
+    const ytList = await ytpl.getPlaylistID(url);
+    const noVid = new Discord.MessageEmbed()
+      .setDescription(`that's a playlist! I can't do anything with that yet. we're working on it 💛`)
+      .setColor('#D09CFF');
+    return message.channel.send(noVid);
+
+    // const playlist = await ytdl.getPlaylist(url);
+    // const videos = await playlist.getVideos();
+    // for(const video of Object.values(videos)) {
+    //   const video2 = await ytdl.getVideoByID(video.id);
+    //   return message.channel.send(video2);
+    // }
+
+  } else { // we aren't - play a song instead
+    if (ytdl.validateURL(url)) {
+      const songInfo = await ytdl.getInfo(url);
       song = {
-        title: video.title,
-        url: video.url,
+        title: songInfo.videoDetails.title,
+        url: songInfo.videoDetails.video_url,
       };
-    } else { // runs a check to see if we're supposed to leave the server
-      if (message.content === '-decosmic') {
-        const decosmic = new Discord.MessageEmbed()
-          .setDescription(`👋🏼 *baiii*`)
-          .setColor('#D09CFF');
-        return message.channel.send(decosmic);
-      } else { // we couldn't find a song
+    } else { // otherwise search YT and play the first result
+      const video_finder = async(query)=> {
+        const videoResult = await search(query);
+        return (videoResult.videos.length > 1) ? videoResult.videos[0] : null;
+      }
+      const video = await video_finder(args.join(' '));
+      if (video) {
+        song = {
+          title: video.title,
+          url: video.url,
+        };
+      } else { // can't play a song
         const noVid = new Discord.MessageEmbed()
           .setDescription(`Sorry, I couldn't find anything to play!`)
           .setColor('#D09CFF');
         return message.channel.send(noVid);
-        }
       }
     }
   }
@@ -201,77 +240,36 @@ async function execute(message, serverQueue) {
       .setTimestamp()
       .setFooter(`brought to you by ${author}`, `${avatar}`);
     serverQueue.songs.push(song);
-    return message.channel.send(queueing );
+    return message.channel.send(queueing);
   }
 }
 
 function play(author, avatar, guild, song) {
   const serverQueue = queue.get(guild.id);
-  if (!song) {
+  if (!song) { // After the queue has ended
     queue.delete(guild.id);
+    timeoutID = setTimeout(() => {
+      serverQueue.voiceChannel.leave();
+    }, 7 * 60 * 1000) // 7 minutes in ms
     return;
   }
-
-  const dispatcher = serverQueue.connection
-    .play(ytdl(song.url, {
-      filter: 'audioonly'
-    }))
-    .on('finish', () => {
-      serverQueue.songs.shift();
-      play(author, avatar, guild, serverQueue.songs[0]);
-    })
-    .on('error', error => console.error(error));
-  dispatcher.setVolumeLogarithmic(serverQueue.volume / 5);
   const playing = new Discord.MessageEmbed()
     .setTitle(`🎶 Now Playing 🎶 `)
     .setColor('#79E676')
     .setDescription(`${song.title}`)
     .setTimestamp()
     .setFooter(`brought to you by ${author}`, `${avatar}`);
+  const dispatcher = serverQueue.connection
+    .play(ytdl(song.url, { filter: 'audioonly' }))
+    .on('finish', () => {
+      serverQueue.songs.shift();
+      play(author, avatar, guild, serverQueue.songs[0]);
+    })
+    .on('error', error => console.error(error));
+  dispatcher.setVolumeLogarithmic(serverQueue.volume / 5);
   serverQueue.textChannel.send(playing);
-}
-
-function skip(message, serverQueue) {
-  const voiceChannelMessage = new Discord.MessageEmbed()
-  .setDescription(`You have to be in a voice channel to skip!`)
-  .setColor('#D09CFF');
-  const skip = new Discord.MessageEmbed()
-    .setDescription(`There wasn't a song I could skip!`)
-    .setColor('#D09CFF');
-  if (!message.member.voice.channel)
-    return message.channel.send(voiceChannelMessage);
-  if (!serverQueue)
-    return message.channel.send(skip);
-  serverQueue.connection.dispatcher.end();
-}
-
-function stop(message, serverQueue) {
-  const voiceChannelMessage = new Discord.MessageEmbed()
-    .setDescription(`You have to be in a voice channel to stop!`)
-    .setColor('#D09CFF');
-  const stopping = new Discord.MessageEmbed()
-    .setDescription(`*Song stopped, queue cleared*`)
-    .setColor('#D09CFF');
-  const noStop = new Discord.MessageEmbed()
-    .setDescription(`There wasn't a song I could stop!`)
-    .setColor('#D09CFF');
-  if (!message.member.voice.channel)
-    return message.channel.send(voiceChannelMessage);
-
-  if (!serverQueue)
-    return message.channel.send(noStop);
-
-  serverQueue.songs = [];
-  serverQueue.connection.dispatcher.end();
-  return message.channel.send(stopping);
-}
-
-function decosmic(message) {
-  const decosmic = new Discord.MessageEmbed()
-    .setDescription(`👋🏼 *baiii*`)
-    .setColor('#D09CFF');
-  message.guild.me.voice.channel.leave();
-  return message.channel.send(decosmic);
+  
+  return;
 }
 
 client.login(token);
