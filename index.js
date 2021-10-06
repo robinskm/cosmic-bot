@@ -243,7 +243,6 @@ async function execute(message, serverQueue) {
       .setColor('#4FDFED')
       .setDescription(`${song.title}`)
       .setImage(song.thumbnail || "https://cdn.iconscout.com/icon/free/png-256/youtube-85-226402.png")
-      .setTimestamp()
       .setFooter(`brought to you by ${author}`, `${avatar}`);
     serverQueue.songs.push(song);
     return message.channel.send(queueing);
@@ -264,8 +263,7 @@ function play(author, avatar, guild, song) {
     .setTitle(`🎶 Now Playing 🎶 `)
     .setColor('#79E676')
     .setDescription(`${song.title}`)
-  .setImage(song.thumbnail || "https://cdn.iconscout.com/icon/free/png-256/youtube-85-226402.png")
-    .setTimestamp()
+    .setImage(song.thumbnail || "https://cdn.iconscout.com/icon/free/png-256/youtube-85-226402.png")
     .setFooter(`brought to you by ${author}`, `${avatar}`);
   const dispatcher = serverQueue.connection
     .play(ytdl(song.url, { filter: 'audioonly' }))
