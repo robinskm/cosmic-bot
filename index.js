@@ -191,17 +191,13 @@ async function execute(message, serverQueue) {
       song = {
         title: songInfo.videoDetails.title,
         url: songInfo.videoDetails.video_url,
-        thumbnail: songInfo.videoDetails.thumbnail,
+        thumbnail: songInfo.videoDetails.thumbnails[3].url,
       };
     } else { // otherwise search YT and play the first result
       const video_finder = async (query) => {
         const search_query = query.toLowerCase().replace('-p ', '');
         const videoResult = await search(search_query);
-        if (videoResult.title) {
-
-        } else {
-          return (videoResult.videos.length > 1) ? videoResult.videos[0] : null;
-        }
+        return (videoResult.videos.length > 1) ? videoResult.videos[0] : null;
       }
       const video = await video_finder(args.join(' '));
       if (video) {
