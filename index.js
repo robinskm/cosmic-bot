@@ -30,6 +30,13 @@ client.once('disconnect', () => {
   console.log('Disconnect!');
 });
 
+// Turn bot off (destroy), then turn it back on
+function resetBot(channel) {
+  // send channel a message that you're resetting bot [optional]
+  msg => client.destroy()
+  .then(() => client.login(token));
+}
+
 client.on('voiceStateUpdate', (oldState, newState) => {
   // check if someone connects or disconnects
   if (oldState.channelID === null || typeof oldState.channelID == 'undefined') return;
@@ -105,6 +112,7 @@ client.on('message', async message => {
         .setDescription(`👋🏼 *baiii*`)
         .setColor('#D09CFF');
       message.guild.me.voice.channel.leave();
+      resetBot(message.channel);
       return message.channel.send(decosmic);
     } else if (message.content.startsWith(`${prefix}help`)) {
       const commandsEmbed = new Discord.MessageEmbed()
@@ -178,6 +186,8 @@ async function execute(message, serverQueue) {
       .setColor('#D09CFF');
     return message.channel.send(noVid);
 
+    // for each song in playlist, grab the information and push into the queue
+
     // const playlist = await ytdl.getPlaylist(url);
     // const videos = await playlist.getVideos();
     // for(const video of Object.values(videos)) {
@@ -230,7 +240,7 @@ async function execute(message, serverQueue) {
     try {
       var connection = await voiceChannel.join();
       queueContruct.connection = connection;
-      play(author, avatar, message.guild, queueContruct.songs[0]);
+      play(author, avatar, message.guild, queueContruct.songs[0]); // play first song in the queue
     } catch (err) {
       console.log(err);
       queue.delete(message.guild.id);
@@ -243,7 +253,13 @@ async function execute(message, serverQueue) {
       .setDescription(`${song.title}`)
       .setImage(song.thumbnail || "https://cdn.iconscout.com/icon/free/png-256/youtube-85-226402.png")
       .setFooter(`brought to you by ${author}`, `${avatar}`);
-    serverQueue.songs.push(song);
+    try {
+      serverQueue.songs.push(song);
+    } catch (err) {
+      console.log(err);
+      queue.delete(message.guild.id);
+      return message.channel.send(err);
+    }
     return message.channel.send(queueing);
   }
 }
@@ -257,20 +273,21 @@ function play(author, avatar, guild, song) {
     }, 7 * 60 * 1000) // 7 minutes in ms
     return;
   }
-  clearTimeout(timeoutID);
+  clearTimeout(timeoutID); // resets auto disconnect timer when a song is played
   const playing = new Discord.MessageEmbed()
     .setTitle(`🎶 Now Playing 🎶 `)
     .setColor('#79E676')
     .setDescription(`${song.title}`)
-    .setImage(song.thumbnail || "https://cdn.iconscout.com/icon/free/png-256/youtube-85-226402.png")
+    .setImage(song.thumbnail || "https://cdn.iconscout.com/icon/free/png-256/youtube-85-226402.png") // grabs the YT logo if thumbnail is unavailable
     .setFooter(`brought to you by ${author}`, `${avatar}`);
   const dispatcher = serverQueue.connection
     .play(ytdl(song.url, { filter: 'audioonly' }))
     .on('finish', () => {
-      serverQueue.songs.shift();
-      play(author, avatar, guild, serverQueue.songs[0]);
+      serverQueue.songs.shift(); // get the next song in queue
+      play(author, avatar, guild, serverQueue.songs[0]); // play it
     })
     .on('error', error => console.error(error));
+
   dispatcher.setVolumeLogarithmic(serverQueue.volume / 5);
   serverQueue.textChannel.send(playing);
   
