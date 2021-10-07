@@ -163,8 +163,6 @@ async function execute(message, serverQueue) {
   let author = message.member.displayName;
   let avatar = message.author.avatarURL();
 
-  // message.channel.send(voiceChannel);
-
   if (!voiceChannel) {
     return message.channel.send(
       'You need to be in a voice channel to play music!'
@@ -247,20 +245,20 @@ async function execute(message, serverQueue) {
       return message.channel.send(err);
     }
   } else {
-    const queueing = new Discord.MessageEmbed()
-      .setTitle(`📌 Queuein' up`)
-      .setColor('#4FDFED')
-      .setDescription(`${song.title}`)
-      .setImage(song.thumbnail || "https://cdn.iconscout.com/icon/free/png-256/youtube-85-226402.png")
-      .setFooter(`brought to you by ${author}`, `${avatar}`);
     try {
+      const queueing = new Discord.MessageEmbed()
+        .setTitle(`📌 Queuein' up`)
+        .setColor('#4FDFED')
+        .setDescription(`${song.title}`)
+        .setImage(song.thumbnail || "https://cdn.iconscout.com/icon/free/png-256/youtube-85-226402.png")
+        .setFooter(`brought to you by ${author}`, `${avatar}`);
       serverQueue.songs.push(song);
+      return message.channel.send(queueing);
     } catch (err) {
       console.log(err);
       queue.delete(message.guild.id);
       return message.channel.send(err);
     }
-    return message.channel.send(queueing);
   }
 }
 
@@ -270,6 +268,7 @@ function play(author, avatar, guild, song) {
     queue.delete(guild.id);
     timeoutID = setTimeout(() => {
       serverQueue.voiceChannel.leave();
+      console.log('cosmicbot disconnected. Ready ✨');
     }, 7 * 60 * 1000) // 7 minutes in ms
     return;
   }
@@ -290,7 +289,7 @@ function play(author, avatar, guild, song) {
 
   dispatcher.setVolumeLogarithmic(serverQueue.volume / 5);
   serverQueue.textChannel.send(playing);
-  
+  console.log(author + ' played ' + `${song.title}`);
   return;
 }
 
