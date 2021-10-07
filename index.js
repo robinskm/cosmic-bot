@@ -113,6 +113,7 @@ client.on('message', async message => {
         .setColor('#D09CFF');
       message.guild.me.voice.channel.leave();
       resetBot(message.channel);
+      console.log('cosmicbot disconnected. Ready ✨');
       return message.channel.send(decosmic);
     } else if (message.content.startsWith(`${prefix}help`)) {
       const commandsEmbed = new Discord.MessageEmbed()
