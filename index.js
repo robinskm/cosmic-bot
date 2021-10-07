@@ -19,15 +19,15 @@ const queue = new Map();
 let timeoutID;
 
 client.once('ready', () => {
-  console.log('Ready ✨');
+  console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥 ✨ is ready!');
 });
 
 client.once('reconnecting', () => {
-  console.log('Reconnecting!');
+  console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥 ✨ is reconnecting!');
 });
 
 client.once('disconnect', () => {
-  console.log('Disconnect!');
+  console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥 ✨ disconnected!');
 });
 
 // Turn bot off (destroy), then turn it back on
@@ -113,7 +113,7 @@ client.on('message', async message => {
         .setColor('#D09CFF');
       message.guild.me.voice.channel.leave();
       resetBot(message.channel);
-      console.log('cosmicbot disconnected. Ready ✨');
+      console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥 ✨ is ready!');
       return message.channel.send(decosmic);
     } else if (message.content.startsWith(`${prefix}help`)) {
       const commandsEmbed = new Discord.MessageEmbed()
@@ -269,7 +269,7 @@ function play(author, avatar, guild, song) {
     queue.delete(guild.id);
     timeoutID = setTimeout(() => {
       serverQueue.voiceChannel.leave();
-      console.log('cosmicbot disconnected. Ready ✨');
+      console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥 ✨ is ready!');
     }, 7 * 60 * 1000) // 7 minutes in ms
     return;
   }
