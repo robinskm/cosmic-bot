@@ -246,20 +246,20 @@ async function execute(message, serverQueue) {
       return message.channel.send(err);
     }
   } else {
+    const queueing = new Discord.MessageEmbed()
+      .setTitle(`📌 Queuein' up`)
+      .setColor('#4FDFED')
+      .setDescription(`${song.title}`)
+      .setImage(song.thumbnail || "https://cdn.iconscout.com/icon/free/png-256/youtube-85-226402.png")
+      .setFooter(`brought to you by ${author}`, `${avatar}`);
     try {
-      const queueing = new Discord.MessageEmbed()
-        .setTitle(`📌 Queuein' up`)
-        .setColor('#4FDFED')
-        .setDescription(`${song.title}`)
-        .setImage(song.thumbnail || "https://cdn.iconscout.com/icon/free/png-256/youtube-85-226402.png")
-        .setFooter(`brought to you by ${author}`, `${avatar}`);
       serverQueue.songs.push(song);
-      return message.channel.send(queueing);
     } catch (err) {
       console.log(err);
       queue.delete(message.guild.id);
       return message.channel.send(err);
     }
+    return message.channel.send(queueing);
   }
 }
 
