@@ -296,7 +296,7 @@ function play(author, avatar, guild, song) {
       serverQueue.voiceChannel.leave();
       // serverQueue.guild.me.voice.channel.leave();
       console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥 ✨ is ready!');
-    }, .5 * 60 * 1000) // 7 minutes in ms
+    }, 5 * 60 * 1000) // 7 minutes in ms
     return;
   }
   clearTimeout(timeoutID); // resets auto disconnect timer when a song is played
