@@ -112,7 +112,7 @@ client.on('message', async message => {
         .setDescription(`👋🏼 *baiii*`)
         .setColor('#D09CFF');
       message.guild.me.voice.channel.leave();
-      resetBot(message.channel);
+      // resetBot(message.channel);
       console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥 ✨ is ready!');
       return message.channel.send(decosmic);
     } else if (message.content.startsWith(`${prefix}help`)) {
