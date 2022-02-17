@@ -19,37 +19,54 @@ const queue = new Map();
 let timeoutID;
 
 client.once('ready', () => {
-  console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥 ✨ is ready!');
+  try {
+    console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥 ✨ is ready!');
+  } catch(e) {
+    console.log('Catch an error: ', e)
+  }
 });
 
 client.once('reconnecting', () => {
-  console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥 ✨ is reconnecting!');
+  try {
+    console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥 ✨ is reconnecting!');
+  } catch (e) {
+    console.log('Catch an error: ', e)
+  }
 });
 
 client.once('disconnect', () => {
-  console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥 ✨ disconnected!');
+  try {
+    console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥 ✨ disconnected!');
+  } catch (e) {
+    console.log('Catch an error: ', e)
+  }
 });
 
 // Turn bot off (destroy), then turn it back on
-function resetBot(channel) {
-  // send channel a message that you're resetting bot [optional]
-  msg => client.destroy()
-  .then(() => client.login(token));
-}
+// function resetBot(channel) {
+//   // send channel a message that you're resetting bot [optional]
+//   msg => client.destroy()
+//   .then(() => client.login(token));
+// }
 
 client.on('voiceStateUpdate', (oldState, newState) => {
-  // check if someone connects or disconnects
-  if (oldState.channelID === null || typeof oldState.channelID == 'undefined') return;
-  // check if the bot is disconnecting
-  if (newState.id !== client.user.id) return;
-  // clear the queue
-  // reset disconnect timer
-  clearTimeout(timeoutID)
-  timeoutID = undefined
-  return queue.delete(oldState.guild.id);
+  try {
+    // check if someone connects or disconnects
+    if (oldState.channelID === null || typeof oldState.channelID == 'undefined') return;
+    // check if the bot is disconnecting
+    if (newState.id !== client.user.id) return;
+    // clear the queue
+    // reset disconnect timer
+    clearTimeout(timeoutID)
+    timeoutID = undefined
+    return queue.delete(oldState.guild.id);
+  } catch (e) {
+    console.log('Catch an error: ', e)
+  }
 });
 
 client.on('message', async message => {
+  try {
     if (message.author.bot) return;
     if (!message.content.startsWith(prefix)) return;
 
@@ -113,6 +130,8 @@ client.on('message', async message => {
         .setColor('#D09CFF');
       message.guild.me.voice.channel.leave();
       // resetBot(message.channel);
+      // client.destroy().then(client.login(process.env.BOT_TOKEN))
+
       console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥 ✨ is ready!');
       return message.channel.send(decosmic);
     } else if (message.content.startsWith(`${prefix}help`)) {
@@ -153,6 +172,9 @@ client.on('message', async message => {
     } else {
       message.channel.send('I dunno what that means.\nNeed help? Type **-help**');
     }
+  } catch(e) {
+    console.log(e);
+  }
 });
 
 async function execute(message, serverQueue) {
@@ -204,9 +226,11 @@ async function execute(message, serverQueue) {
       };
     } else { // otherwise search YT and play the first result
       const video_finder = async (query) => {
-        const search_query = query.toLowerCase().replace('-p ', '');
-        const videoResult = await search(search_query);
-        return (videoResult.videos.length > 1) ? videoResult.videos[0] : null;
+        try {
+          const search_query = query.toLowerCase().replace('-p ', '');
+          const videoResult = await search(search_query);
+          return (videoResult.videos.length > 1) ? videoResult.videos[0] : null;
+        } catch(e) {console.log(e); }
       }
       const video = await video_finder(args.join(' '));
       if (video) {
@@ -283,8 +307,12 @@ function play(author, avatar, guild, song) {
   const dispatcher = serverQueue.connection
     .play(ytdl(song.url, { filter: 'audioonly' }))
     .on('finish', () => {
-      serverQueue.songs.shift(); // get the next song in queue
-      play(author, avatar, guild, serverQueue.songs[0]); // play it
+      try {
+          serverQueue.songs.shift(); // get the next song in queue
+          play(author, avatar, guild, serverQueue.songs[0]); // play it
+      } catch (e) {
+        console.log('Catch an error: ', e)
+      }
     })
     .on('error', error => console.error(error));
 
