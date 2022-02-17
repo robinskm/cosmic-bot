@@ -43,11 +43,11 @@ client.once('disconnect', () => {
 });
 
 // Turn bot off (destroy), then turn it back on
-// function resetBot(channel) {
-//   // send channel a message that you're resetting bot [optional]
-//   msg => client.destroy()
-//   .then(() => client.login(token));
-// }
+function resetBot(channel) {
+  // send channel a message that you're resetting bot [optional]
+  msg => client.destroy()
+  .then(() => client.login(token));
+}
 
 client.on('voiceStateUpdate', (oldState, newState) => {
   try {
@@ -57,9 +57,10 @@ client.on('voiceStateUpdate', (oldState, newState) => {
     if (newState.id !== client.user.id) return;
     // clear the queue
     // reset disconnect timer
-    clearTimeout(timeoutID)
-    timeoutID = undefined
-    return queue.delete(oldState.guild.id);
+    // 02/17 this was fucking with the guild when the bot was moved channels... removed for now - do we even need?
+    // clearTimeout(timeoutID)
+    // timeoutID = undefined
+    // return queue.delete(oldState.guild.id);
   } catch (e) {
     console.log('Catch an error: ', e)
   }
@@ -218,7 +219,7 @@ async function execute(message, serverQueue) {
 
   } else { // we aren't - play a song instead
     if (ytdl.validateURL(url)) {
-      const songInfo = await ytdl.getInfo(url);
+      let songInfo = await ytdl.getInfo(url);
       song = {
         title: songInfo.videoDetails.title,
         url: songInfo.videoDetails.video_url,
@@ -232,7 +233,7 @@ async function execute(message, serverQueue) {
           return (videoResult.videos.length > 1) ? videoResult.videos[0] : null;
         } catch(e) {console.log(e); }
       }
-      const video = await video_finder(args.join(' '));
+      let video = await video_finder(args.join(' '));
       if (video) {
         song = {
           title: video.title,
@@ -261,7 +262,7 @@ async function execute(message, serverQueue) {
     queue.set(message.guild.id, queueContruct);
     queueContruct.songs.push(song);
     try {
-      var connection = await voiceChannel.join();
+      let connection = await voiceChannel.join();
       queueContruct.connection = connection;
       play(author, avatar, message.guild, queueContruct.songs[0]); // play first song in the queue
     } catch (err) {
@@ -278,23 +279,24 @@ async function execute(message, serverQueue) {
       .setFooter(`brought to you by ${author}`, `${avatar}`);
     try {
       serverQueue.songs.push(song);
+      return message.channel.send(queueing);
     } catch (err) {
       console.log(err);
       queue.delete(message.guild.id);
       return message.channel.send(err);
     }
-    return message.channel.send(queueing);
   }
 }
 
 function play(author, avatar, guild, song) {
-  const serverQueue = queue.get(guild.id);
+  let serverQueue = queue.get(guild.id);
   if (!song) { // After the queue has ended
     queue.delete(guild.id);
     timeoutID = setTimeout(() => {
       serverQueue.voiceChannel.leave();
+      // serverQueue.guild.me.voice.channel.leave();
       console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥 ✨ is ready!');
-    }, 7 * 60 * 1000) // 7 minutes in ms
+    }, .5 * 60 * 1000) // 7 minutes in ms
     return;
   }
   clearTimeout(timeoutID); // resets auto disconnect timer when a song is played
