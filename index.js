@@ -58,9 +58,9 @@ client.on('voiceStateUpdate', (oldState, newState) => {
     // clear the queue
     // reset disconnect timer
     // 02/17 this was fucking with the guild when the bot was moved channels... removed for now - do we even need?
-    // clearTimeout(timeoutID)
-    // timeoutID = undefined
-    // return queue.delete(oldState.guild.id);
+    clearTimeout(timeoutID)
+    timeoutID = undefined
+    return queue.delete(oldState.guild.id);
   } catch (e) {
     console.log('Catch an error: ', e)
   }
