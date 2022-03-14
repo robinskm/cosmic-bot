@@ -7,11 +7,11 @@ const search = require('yt-search');
 // const YouTube = require('simple-youtube-api');
 
 // token and prefix
-const prefix = '-';
-const token = process.env['COSMIC_BOT_TOKEN'];
+// const prefix = '-';
+// const token = process.env['COSMIC_BOT_TOKEN'];
 // const youtube = new YouTube(GOOGLE_API_KEY);
 
-// const { prefix, token } = require('./config.json');
+const { prefix, token } = require('./config.json');
 
 const client = new Discord.Client();
 const queue = new Map();
@@ -21,7 +21,7 @@ let timeoutID;
 client.once('ready', () => {
   try {
     console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥 ✨ is ready!');
-  } catch(e) {
+  } catch (e) {
     console.log('Catch an error: ', e)
   }
 });
@@ -46,7 +46,7 @@ client.once('disconnect', () => {
 function resetBot(channel) {
   // send channel a message that you're resetting bot [optional]
   msg => client.destroy()
-  .then(() => client.login(token));
+    .then(() => client.login(token));
 }
 
 client.on('voiceStateUpdate', (oldState, newState) => {
@@ -173,7 +173,7 @@ client.on('message', async message => {
     } else {
       message.channel.send('I dunno what that means.\nNeed help? Type **-help**');
     }
-  } catch(e) {
+  } catch (e) {
     console.log(e);
   }
 });
@@ -231,7 +231,9 @@ async function execute(message, serverQueue) {
           const search_query = query.toLowerCase().replace('-p ', '');
           const videoResult = await search(search_query);
           return (videoResult.videos.length > 1) ? videoResult.videos[0] : null;
-        } catch(e) {console.log(e); }
+        } catch (e) {
+          console.log(e);
+        }
       }
       let video = await video_finder(args.join(' '));
       if (video) {
@@ -307,11 +309,13 @@ function play(author, avatar, guild, song) {
     .setImage(song.thumbnail || "https://cdn.iconscout.com/icon/free/png-256/youtube-85-226402.png") // grabs the YT logo if thumbnail is unavailable
     .setFooter(`brought to you by ${author}`, `${avatar}`);
   const dispatcher = serverQueue.connection
-    .play(ytdl(song.url, { filter: 'audioonly' }))
+    .play(ytdl(song.url, {
+      filter: 'audioonly'
+    }))
     .on('finish', () => {
       try {
-          serverQueue.songs.shift(); // get the next song in queue
-          play(author, avatar, guild, serverQueue.songs[0]); // play it
+        serverQueue.songs.shift(); // get the next song in queue
+        play(author, avatar, guild, serverQueue.songs[0]); // play it
       } catch (e) {
         console.log('Catch an error: ', e)
       }
