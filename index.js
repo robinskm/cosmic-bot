@@ -7,11 +7,12 @@ const search = require('yt-search');
 // const YouTube = require('simple-youtube-api');
 
 // token and prefix
-// const prefix = '-';
-// const token = process.env['COSMIC_BOT_TOKEN'];
+const prefix = '-';
+const token = process.env['COSMIC_BOT_TOKEN'];
+// const token = require('./config.json');
+
 // const youtube = new YouTube(GOOGLE_API_KEY);
 
-const { prefix, token } = require('./config.json');
 
 const client = new Discord.Client();
 const queue = new Map();
