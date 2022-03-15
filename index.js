@@ -137,8 +137,8 @@ client.on('message', async message => {
       const decosmic = new MessageEmbed()
         .setDescription(`👋🏼 *baiii*`)
         .setColor('#D09CFF');
-      serverQueue.songs = [];
-      serverQueue.connection.dispatcher.end();
+      // serverQueue.songs = [];
+      // serverQueue.connection.dispatcher.end();
       message.guild.me.voice.channel.leave();
 
       console.log('decosmic\'d, ✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥 ✨ is ready!');
