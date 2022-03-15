@@ -6,12 +6,12 @@ const YouTube = require('simple-youtube-api');
 
 // token and prefix
 const prefix = '-';
-// const token = process.env['COSMIC_BOT_TOKEN'];
-// const GOOGLE_API_KEY = process.env['GOOGLE_API_KEY']
+const token = process.env['COSMIC_BOT_TOKEN'];
+const GOOGLE_API_KEY = process.env['GOOGLE_API_KEY']
 
-const {
-  token, GOOGLE_API_KEY
-} = require('./config.json');
+// const {
+//   token, GOOGLE_API_KEY
+// } = require('./config.json');
 
 const client = new Client();
 const queue = new Map();
