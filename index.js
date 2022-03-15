@@ -1,7 +1,6 @@
 // core & third-party modules
 const { Client, MessageEmbed, Util } = require('discord.js');
 const ytdl = require('ytdl-core');
-// const ytpl = require('ytpl');
 const search = require('yt-search');
 const YouTube = require('simple-youtube-api');
 
@@ -9,15 +8,14 @@ const YouTube = require('simple-youtube-api');
 const prefix = '-';
 const token = process.env['COSMIC_BOT_TOKEN'];
 const GOOGLE_API_KEY = process.env['GOOGLE_API_KEY']
+
 // const {
 //   token, GOOGLE_API_KEY
 // } = require('./config.json');
 
-const youtube = new YouTube(GOOGLE_API_KEY);
-
-
 const client = new Client();
 const queue = new Map();
+const youtube = new YouTube(GOOGLE_API_KEY);
 
 let timeoutID;
 
@@ -139,8 +137,8 @@ client.on('message', async message => {
       const decosmic = new MessageEmbed()
         .setDescription(`👋🏼 *baiii*`)
         .setColor('#D09CFF');
-      // serverQueue.songs = [];
-      // serverQueue.connection.dispatcher.end();
+      serverQueue.songs = [];
+      serverQueue.connection.dispatcher.end();
       message.guild.me.voice.channel.leave();
 
       console.log('decosmic\'d, ✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥 ✨ is ready!');
@@ -209,55 +207,61 @@ async function execute(message, serverQueue) {
 
   let song = {};
 
-  try {
-    var video = await youtube.getVideo(url);
-  } catch (err) {
-    try {
-      var videos = await youtube.searchVideos(url, 1);
-      var video = await youtube.getVideoByID(videos[0].id);
-    } catch (err) {
-      const noSearch = new MessageEmbed()
-        .setDescription(`*I couldn't find any results via search*`)
-        .setColor('#D09CFF');
-      return message.channel.send(noSearch);
-    }
-  }
-
-  if (ytdl.validateURL(url)) {
-    song = {
-      id: video.id,
-      title: video.title,
-      url: `https://www.youtube.com/watch?v=${video.id}`,
-      thumbnail: video.thumbnails.standard.url,
-    };
-  } else { // otherwise search YT and play the first result
-    const video_finder = async (query) => {
+  if (url.match(/^https?:\/\/(www.youtube.com|youtube.com)\/playlist(.*)$/)) {
+    const playlist = await youtube.getPlaylist(url).catch(erro => {
+      return message.reply("A Playlist é privada ou não existe!")
+    });
+    const videos = await playlist.getVideos().catch(erro => {
+      message.reply("Ocorreu um problema ao colocar um dos vídeos da playlist na fila!'")
+    });
+    for (const video of Object.values(videos)) {
       try {
-        const search_query = query.toLowerCase().replace('-p ', '');
-        const videoResult = await search(search_query);
-        return (videoResult.videos.length > 1) ? videoResult.videos[0] : null;
-      } catch (e) {
-        console.log(e);
+        const video2 = await youtube.getVideoByID(video.id)
+        await handleVideo(video2, message, voiceChannel, true)
+      } catch {}
+    }
+    const serverQueue = queue.get(message.guild.id);
+    const addedPlaylist = new MessageEmbed()
+      .setTitle(`🎶 Playlist added 🎶`)
+      .setColor('#4FDFED')
+      .setDescription(`
+      ${serverQueue.songs.map(song =>`◦ ${song.title}`).join('\n')}
+      
+      ✨ use ** -q ** or ** -queue ** to bring up this list again. ✨
+      `)
+      .setFooter(`brought to you by ${message.member.displayName}`, `${message.member.user.displayAvatarURL()}`);
+
+    message.channel.send(addedPlaylist);
+  } else {
+    try {
+      var video = await youtube.getVideo(url);
+    } catch (err) {
+      try {
+        const video_finder = async (query) => {
+          try {
+            const search_query = query.toLowerCase().replace('-p ', '');
+            const videoResult = await search(search_query);
+            return (videoResult.videos.length > 1) ? videoResult.videos[0] : null;
+          } catch (e) {
+            console.log(e);
+          }
+        }
+        var video = await video_finder(args.join(' '));
+      } catch (err) {
+        const noSearch = new MessageEmbed()
+          .setDescription(`*I couldn't find any results via search*`)
+          .setColor('#D09CFF');
+        return message.channel.send(noSearch);
       }
     }
-    let videoSearched = await video_finder(args.join(' '));
-    if (videoSearched) {
-      song = {
-        // removed 03/15 - KR
-        title: Util.escapeMarkdown(videoSearched.title),
-        // added 03/15 - KR
-        // title: Util.escapeMarkdown(video.title),
-        url: videoSearched.url,
-        thumbnail: videoSearched.thumbnail,
-      };
-    } else { // can't play a song
-      const noVid = new MessageEmbed()
-        .setDescription(`Sorry, I couldn't find anything to play!`)
-        .setColor('#D09CFF');
-      return message.channel.send(noVid);
-    }
-  }
 
+    return handleVideo(video, message, voiceChannel);
+  }
+  return undefined;
+}
+
+async function handleVideo(video, message, voiceChannel, playlist = false) {
+  const serverQueue = queue.get(message.guild.id);
   if (!serverQueue) {
     const queueConstruct = {
       textChannel: message.channel,
@@ -269,7 +273,7 @@ async function execute(message, serverQueue) {
     };
 
     queue.set(message.guild.id, queueConstruct);
-    queueConstruct.songs.push(song);
+    queueConstruct.songs.push(video);
     try {
       let connection = await voiceChannel.join();
       queueConstruct.connection = connection;
@@ -283,14 +287,17 @@ async function execute(message, serverQueue) {
     const queueing = new MessageEmbed()
       .setTitle(`📌 Queuein' up`)
       .setColor('#4FDFED')
-      .setThumbnail(song.thumbnail || "https://cdn.iconscout.com/icon/free/png-256/youtube-85-226402.png") // grabs the YT logo if thumbnail is unavailable
+      .setThumbnail(video.thumbnail || video.thumbnails.standard.url || "https://cdn.iconscout.com/icon/free/png-256/youtube-85-226402.png") // grabs the YT logo if thumbnail is unavailable
       .setDescription(`\
-      \
-      **${song.title}**`)
+        \
+        **${video.title}**`)
       .setFooter(`queue'd by ${message.member.displayName}`, `${message.member.user.displayAvatarURL()}`);
-      
-    serverQueue.songs.push(song);
-    return message.channel.send(queueing);
+
+    serverQueue.songs.push(video);
+    if(playlist == true) { return undefined; } else {
+      return message.channel.send(queueing);
+    }
+    
   }
   return undefined;
 }
@@ -319,12 +326,12 @@ function play(message, guild, song) {
     .on('error', error => console.error(error));
 
   const playing = new MessageEmbed()
-    .setTitle(`🎶 Now Playing 🎶 `)
+    .setTitle(`🎶 Now Playing 🎶`)
     .setColor('#79E676')
     .setDescription(`\
         \
         **${song.title}**`)
-    .setImage(song.thumbnail || "https://cdn.iconscout.com/icon/free/png-256/youtube-85-226402.png") // grabs the YT logo if thumbnail is unavailable
+    .setImage(song.thumbnail || song.thumbnails.standard.url || "https://cdn.iconscout.com/icon/free/png-256/youtube-85-226402.png") // grabs the YT logo if thumbnail is unavailable
     .setFooter(`brought to you by ${message.member.displayName}`, `${message.member.user.displayAvatarURL()}`);
 
   dispatcher.setVolumeLogarithmic(serverQueue.volume / 5);
