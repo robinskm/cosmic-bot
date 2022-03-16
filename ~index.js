@@ -2,59 +2,41 @@
 const {
   Client,
   MessageEmbed,
+  MessageAttachment,
   Util
 } = require('discord.js');
 const ytdl = require('ytdl-core');
-const ytpl = require('ytpl');
 const search = require('yt-search');
-
-// const YouTube = require('simple-youtube-api');
+const YouTube = require('simple-youtube-api');
 
 // token and prefix
 const prefix = '-';
 // const token = process.env['COSMIC_BOT_TOKEN'];
+// const GOOGLE_API_KEY = process.env['GOOGLE_API_KEY']
+
 const {
-  token
+  token,
+  GOOGLE_API_KEY
 } = require('./config.json');
-
-// const youtube = new YouTube(GOOGLE_API_KEY);
-
 
 const client = new Client();
 const queue = new Map();
+const youtube = new YouTube(GOOGLE_API_KEY);
 
 let timeoutID;
 
 client.once('ready', () => {
-  try {
-    console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥 ✨ is ready!');
-  } catch (e) {
-    console.log('Catch an error: ', e)
-  }
+  console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥  ✨ is ready!');
 });
 
 client.once('reconnecting', () => {
-  try {
-    console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥 ✨ is reconnecting!');
-  } catch (e) {
-    console.log('Catch an error: ', e)
-  }
+  console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥  ✨ is reconnecting!');
 });
 
-client.once('disconnect', () => {
-  try {
-    console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥 ✨ disconnected!');
-  } catch (e) {
-    console.log('Catch an error: ', e)
-  }
+client.on('disconnect', (message) => {
+  console.log(`${message.member.displayName} disconnected the bot.`);
+  console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥  ✨ is ready!');
 });
-
-// Turn bot off (destroy), then turn it back on
-function resetBot(channel) {
-  // send channel a message that you're resetting bot [optional]
-  msg => client.destroy()
-    .then(() => client.login(token));
-}
 
 client.on('voiceStateUpdate', (oldState, newState) => {
   try {
@@ -64,7 +46,6 @@ client.on('voiceStateUpdate', (oldState, newState) => {
     if (newState.id !== client.user.id) return;
     // clear the queue
     // reset disconnect timer
-    // 02/17 this was fucking with the guild when the bot was moved channels... removed for now - do we even need?
     clearTimeout(timeoutID)
     timeoutID = undefined
     return queue.delete(oldState.guild.id);
@@ -99,8 +80,114 @@ client.on('message', async message => {
         .setColor('#D09CFF');
       message.channel.send(die);
     } else if (message.content.startsWith(`${prefix}p `) || message.content.startsWith(`${prefix}P `)) {
-      execute(message, serverQueue);
-      return;
+      const args = message.content.split(' ');
+      const searchString = args.slice(1).join(' ');
+      // checks if args is present before we can replace
+      const url = args[1] ? args[1].replace(/<(.+)>/g, '$1') : '';
+      const voiceChannel = message.member.voice.channel;
+      const permissions = voiceChannel.permissionsFor(message.client.user);
+
+      if (!voiceChannel) {
+        return message.channel.send(
+          'You need to be in a voice channel to play music!'
+        );
+      }
+
+      if (!permissions.has('CONNECT') || !permissions.has('SPEAK')) {
+        return message.channel.send(
+          'I need the permissions to join and speak in your voice channel!'
+        );
+      }
+
+      if (url.match(/^https?:\/\/(www.youtube.com|youtube.com)\/playlist(.*)$/)) {
+        const playlist = await youtube.getPlaylist(url).catch(erro => {
+          const playlistProb = new MessageEmbed()
+            .setDescription(`*The playlist is prolly private or does not exist.*`)
+            .setColor('#D09CFF');
+          console.log('A playlist couldn\'t be found');
+          return message.channel.send(playlistProb);
+        });
+        const videos = await playlist.getVideos().catch(erro => {
+          const playlistProb = new MessageEmbed()
+            .setDescription(`*There was a problem loading the videos.*`)
+            .setColor('#D09CFF');
+          console.log('A playlist couldn\'t load all the videos');
+          return message.channel.send(playlistProb);
+        });
+        for (const video of Object.values(videos)) {
+          try {
+            const video2 = await youtube.getVideoByID(video.id)
+            await handleVideo(video2, message, voiceChannel, true)
+          } catch {}
+        }
+        const serverQueue = queue.get(message.guild.id);
+        const addedPlaylist = new MessageEmbed()
+          .setTitle(`🎶 Playlist added 🎶`)
+          .setColor('#4FDFED')
+          .setDescription(`
+      ${serverQueue.songs.map(song =>`◦ ${song.title}`).join('\n')}
+      
+      ✨ use ** -q ** or ** -queue ** to bring up this list again. ✨
+      `)
+          .setFooter(`brought to you by ${message.member.displayName}`, `${message.member.user.displayAvatarURL()}`);
+
+        message.channel.send(addedPlaylist);
+      } else {
+        try {
+          var video = await youtube.getVideo(url);
+        } catch (error) {
+          try {
+            const video_finder = async () => {
+              const videoResult = await search(searchString);
+              const videos = videoResult.videos.slice(0, 5);
+
+              let index = 0;
+              const searchSongList = new MessageEmbed()
+                .setTitle(`🔍 Search...`)
+                .setColor('#D09CFF')
+                .setDescription(`
+                  ${videos.map(video =>`${++index} ◦ ${video.title}`).join('\n')}
+                  
+                  **pick a number and tell me what you 're vibin' with 👂🏽**`);
+              // message.channel.send(searchSongList);
+
+              // try{
+              //   var response = await message.channel.awaitMessages(message2 => message2.content > 0 && message2.content < 11, {
+              //     maxMatches: 1,
+              //     time: 10000, // listen for 10 seconds
+              //     errors:['time']
+              //   });
+              //   response.on('collect', message2 => {
+              //     console.log(`${message2.content}`);
+              //     const videoIndex = message2.content;
+              //     return vidmessage2.contenteoIndex;
+              //   });
+              // console.log(message2.content);
+              return (videoResult.videos.length > 1) ? videoResult.videos[0] : null;
+
+              // } catch (err) {
+              //   console.log(err);
+              //   const noSelection = new MessageEmbed()
+              //     .setColor('#D09CFF')
+              //     .setDescription(`*Cancelling song selection*`);
+              //   return message.channel.send(noSelection);
+              // }
+
+              // const videoIndex = response.first().content;
+              // console.log(videoIndex);
+              // return (videoResult.videos.length > 1) ? videoResult.videos[0] : null;
+            }
+            var video = await video_finder(searchString);
+          } catch (err) {
+            const noSearch = new MessageEmbed()
+              .setDescription(`*I couldn't find any results via search*`)
+              .setColor('#D09CFF');
+            return message.channel.send(noSearch);
+          }
+        }
+        return handleVideo(video, message, voiceChannel);
+      }
+      return undefined;
     } else if (message.content.startsWith(`${prefix}queue`) || message.content.startsWith(`${prefix}q`)) {
       if (!serverQueue) {
         const queue = new MessageEmbed()
@@ -122,11 +209,11 @@ client.on('message', async message => {
       const skip = new MessageEmbed()
         .setDescription(`There wasn't a song I could skip!`)
         .setColor('#D09CFF');
-      if (!message.member.voice.channel)
-        return message.channel.send(voiceChannelMessage);
-      if (!serverQueue)
-      return message.channel.send(skip);
+      if (!message.member.voice.channel) return message.channel.send(voiceChannelMessage);
+      if (!serverQueue) return message.channel.send(skip);
       serverQueue.connection.dispatcher.end();
+      // message.channel.send('skip command used');
+      return undefined;
     } else if (message.content.startsWith(`${prefix}stop`)) {
       const voiceChannelMessage = new MessageEmbed()
         .setDescription(`You have to be in a voice channel to stop!`)
@@ -150,11 +237,12 @@ client.on('message', async message => {
       const decosmic = new MessageEmbed()
         .setDescription(`👋🏼 *baiii*`)
         .setColor('#D09CFF');
-      // serverQueue.songs = [];
-      // serverQueue.connection.dispatcher.end();
+
       message.guild.me.voice.channel.leave();
 
-      console.log('decosmic\'d, ✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥 ✨ is ready!');
+      console.log(`${message.member.displayName} decosmic\'d the bot`);
+      console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥  ✨ is ready!');
+
       return message.channel.send(decosmic);
     } else if (message.content.startsWith(`${prefix}help`)) {
       const commandsEmbed = new MessageEmbed()
@@ -192,97 +280,21 @@ client.on('message', async message => {
         .setColor('#1BCCE8');
       message.channel.send(yeyur);
     } else {
-      message.channel.send('I dunno what that means.\nNeed help? Type **-help**');
+      const unknownMessage = new MessageEmbed()
+        .setTitle(`wat?`)
+        .setDescription(`*Need help? Type **-help***`)
+        .setColor('#D09CFF');
+      return message.channel.send(unknownMessage);
     }
   } catch (e) {
     console.log(e);
   }
 });
 
-async function execute(message, serverQueue) {
-  const args = message.content.split(' ');
-  // checks if args is present before we can replace
-  const url = args[1] ? args[1].replace(/<(.+)>/g, '$1') : '';
-  const voiceChannel = message.member.voice.channel;
-  const permissions = voiceChannel.permissionsFor(message.client.user);
-  // const author = message.member.displayName;
-  // const avatar = message.author.user.displayAvatarURL()();
-
-  if (!voiceChannel) {
-    return message.channel.send(
-      'You need to be in a voice channel to play music!'
-    );
-  }
-
-  if (!permissions.has('CONNECT') || !permissions.has('SPEAK')) {
-    return message.channel.send(
-      'I need the permissions to join and speak in your voice channel!'
-    );
-  }
-
-  let song = {}
-
-  // check to see if we're a playlist
-  if (url.match(/playlist(.*)$/)) {
-    // const ytList = await ytpl.getPlaylistID(url);
-    // const noVid = new MessageEmbed()
-    //   .setDescription(`that's a playlist! I can't do anything with that yet. we're working on it 💛`)
-    //   .setColor('#D09CFF');
-    // return message.channel.send(noVid);
-
-    // for each song in playlist, grab the information and push into the queue
-
-    const playlist = await ytdl.getPlaylist(url);
-    const videos = await playlist.getVideos();
-    for (const video of Object.values(videos)) {
-      const video2 = await ytdl.getVideoByID(video.id);
-      await handleVideo(video2, message, voiceChannel, true);
-    }
-    return message.channel.send(`Playlist ${playlist.title} added to the queue`);
-
-  } else { // we aren't - play a song instead
-    if (ytdl.validateURL(url)) {
-      let songInfo = await ytdl.getInfo(url);
-      song = {
-        title: Util.escapeMarkdown(songInfo.videoDetails.title),
-        url: songInfo.videoDetails.video_url,
-        thumbnail: songInfo.videoDetails.thumbnails[3].url,
-      };
-    } else { // otherwise search YT and play the first result
-      const video_finder = async (query) => {
-        try {
-          const search_query = query.toLowerCase().replace('-p ', '');
-          const videoResult = await search(search_query);
-          return (videoResult.videos.length > 1) ? videoResult.videos[0] : null;
-        } catch (e) {
-          console.log(e);
-        }
-      }
-      let video = await video_finder(args.join(' '));
-      if (video) {
-        song = {
-          // removed 03/15 - KR
-          title: Util.escapeMarkdown(video.title),
-          // added 03/15 - KR
-          // title: Util.escapeMarkdown(video.title),
-          url: video.url,
-          thumbnail: video.thumbnail,
-        };
-      } else { // can't play a song
-        const noVid = new MessageEmbed()
-          .setDescription(`Sorry, I couldn't find anything to play!`)
-          .setColor('#D09CFF');
-        return message.channel.send(noVid);
-      }
-    }
-    return handleVideo(song, message, voiceChannel);
-  }
-}
-
-async function handleVideo(song, message, voiceChannel, playlist = false) {
+async function handleVideo(video, message, voiceChannel, playlist = false) {
   const serverQueue = queue.get(message.guild.id);
   if (!serverQueue) {
-    const queueContruct = {
+    const queueConstruct = {
       textChannel: message.channel,
       voiceChannel: voiceChannel,
       connection: null,
@@ -291,12 +303,12 @@ async function handleVideo(song, message, voiceChannel, playlist = false) {
       playing: true
     };
 
-    queue.set(message.guild.id, queueContruct);
-    queueContruct.songs.push(song);
+    queue.set(message.guild.id, queueConstruct);
+    queueConstruct.songs.push(video);
     try {
       let connection = await voiceChannel.join();
-      queueContruct.connection = connection;
-      play(message, message.guild, queueContruct.songs[0]); // play first song in the queue
+      queueConstruct.connection = connection;
+      play(message, message.guild, queueConstruct.songs[0]); // play first song in the queue
     } catch (err) {
       console.log(err);
       queue.delete(message.guild.id);
@@ -306,53 +318,55 @@ async function handleVideo(song, message, voiceChannel, playlist = false) {
     const queueing = new MessageEmbed()
       .setTitle(`📌 Queuein' up`)
       .setColor('#4FDFED')
-      .setThumbnail(song.thumbnail || "https://cdn.iconscout.com/icon/free/png-256/youtube-85-226402.png") // grabs the YT logo if thumbnail is unavailable
+      .setThumbnail(video.thumbnail || video.thumbnails.standard.url || "https://cdn.iconscout.com/icon/free/png-256/youtube-85-226402.png") // grabs the YT logo if thumbnail is unavailable
       .setDescription(`\
-      \
-      **${song.title}**`)
+        \
+        **${video.title}**`)
       .setFooter(`queue'd by ${message.member.displayName}`, `${message.member.user.displayAvatarURL()}`);
-    try {
-      serverQueue.songs.push(song);
-      if (playlist) return undefined;
-      else return message.channel.send(queueing);
-    } catch (err) {
-      console.log(err);
-      queue.delete(message.guild.id);
-      return message.channel.send(err);
+
+    serverQueue.songs.push(video);
+    if (playlist == true) {
+      return undefined;
+    } else {
+      return message.channel.send(queueing);
     }
+
   }
   return undefined;
 }
 
 function play(message, guild, song) {
-  let serverQueue = queue.get(guild.id);
+  const serverQueue = queue.get(guild.id);
   if (!song) { // After the queue has ended
     queue.delete(guild.id);
     timeoutID = setTimeout(() => {
       serverQueue.voiceChannel.leave();
       // serverQueue.guild.me.voice.channel.leave();
-      console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥 ✨ is ready!');
-    }, 5 * 60 * 1000) // 7 minutes in ms
+      console.log('inactive for 5 minutes, disconnecting.');
+      console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥  ✨ is ready!');
+    }, 5 * 60 * 1000) // 5 minutes in ms
     return;
   }
   clearTimeout(timeoutID); // resets auto disconnect timer when a song is played
-  const playing = new MessageEmbed()
-    .setTitle(`🎶 Now Playing 🎶 `)
-    .setColor('#79E676')
-    .setDescription(`\
-      \
-      **${song.title}**`)
-    .setImage(song.thumbnail || "https://cdn.iconscout.com/icon/free/png-256/youtube-85-226402.png") // grabs the YT logo if thumbnail is unavailable
-    .setFooter(`brought to you by ${message.member.displayName}`, `${message.member.user.displayAvatarURL()}`);
+
   const dispatcher = serverQueue.connection
     .play(ytdl(song.url, {
       filter: 'audioonly'
     }))
-    .on('end', () => {
+    .on('finish', () => {
       serverQueue.songs.shift(); // get the next song in queue
       play(message, guild, serverQueue.songs[0]); // play it
     })
     .on('error', error => console.error(error));
+
+  const playing = new MessageEmbed()
+    .setTitle(`🎶 Now Playing 🎶`)
+    .setColor('#79E676')
+    .setDescription(`\
+        \
+        **${song.title}**`)
+    .setImage(song.thumbnail || song.thumbnails.standard.url || "https://cdn.iconscout.com/icon/free/png-256/youtube-85-226402.png") // grabs the YT logo if thumbnail is unavailable
+    .setFooter(`brought to you by ${message.member.displayName}`, `${message.member.user.displayAvatarURL()}`);
 
   dispatcher.setVolumeLogarithmic(serverQueue.volume / 5);
   serverQueue.textChannel.send(playing);

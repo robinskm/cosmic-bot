@@ -1,5 +1,10 @@
 // core & third-party modules
-const { Client, MessageEmbed, MessageAttachment, Util } = require('discord.js');
+const {
+  Client,
+  MessageEmbed,
+  MessageAttachment,
+  Util
+} = require('discord.js');
 const ytdl = require('ytdl-core');
 const search = require('yt-search');
 const YouTube = require('simple-youtube-api');
@@ -10,7 +15,8 @@ const token = process.env['COSMIC_BOT_TOKEN'];
 const GOOGLE_API_KEY = process.env['GOOGLE_API_KEY']
 
 // const {
-//   token, GOOGLE_API_KEY
+//   token,
+//   GOOGLE_API_KEY
 // } = require('./config.json');
 
 const client = new Client();
@@ -19,28 +25,16 @@ const youtube = new YouTube(GOOGLE_API_KEY);
 
 let timeoutID;
 
-client.once('ready', () => {
-  try {
-    console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥 ✨ is ready!');
-  } catch (e) {
-    console.log('Catch an error: ', e)
-  }
-});
+client.once('ready', () => { console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥  ✨ is ready!'); });
 
-client.once('reconnecting', () => {
-  try {
-    console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥 ✨ is reconnecting!');
-  } catch (e) {
-    console.log('Catch an error: ', e)
-  }
-});
+client.once('reconnecting', () => { console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥  ✨ is reconnecting!'); });
 
 client.on('disconnect', (message) => {
   console.log(`${message.member.displayName} disconnected the bot.`);
-  console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥 ✨ is ready!');
+  console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥  ✨ is ready!');
 });
 
-client.on('voiceStateUpdate', (oldState, newState, message) => {
+client.on('voiceStateUpdate', (oldState, newState) => {
   try {
     // check if someone connects or disconnects
     if (oldState.channelID === null || typeof oldState.channelID == 'undefined') return;
@@ -82,8 +76,114 @@ client.on('message', async message => {
         .setColor('#D09CFF');
       message.channel.send(die);
     } else if (message.content.startsWith(`${prefix}p `) || message.content.startsWith(`${prefix}P `)) {
-      execute(message, serverQueue);
-      return;
+      const args = message.content.split(' ');
+      const searchString = args.slice(1).join(' ');
+      // checks if args is present before we can replace
+      const url = args[1] ? args[1].replace(/<(.+)>/g, '$1') : '';
+      const voiceChannel = message.member.voice.channel;
+      const permissions = voiceChannel.permissionsFor(message.client.user);
+
+      if (!voiceChannel) {
+        return message.channel.send(
+          'You need to be in a voice channel to play music!'
+        );
+      }
+
+      if (!permissions.has('CONNECT') || !permissions.has('SPEAK')) {
+        return message.channel.send(
+          'I need the permissions to join and speak in your voice channel!'
+        );
+      }
+
+      if (url.match(/^https?:\/\/(www.youtube.com|youtube.com)\/playlist(.*)$/)) {
+        const playlist = await youtube.getPlaylist(url).catch(erro => {
+          const playlistProb = new MessageEmbed()
+            .setDescription(`*The playlist is prolly private or does not exist.*`)
+            .setColor('#D09CFF');
+          console.log('A playlist couldn\'t be found');
+          return message.channel.send(playlistProb);
+        });
+        const videos = await playlist.getVideos().catch(erro => {
+          const playlistProb = new MessageEmbed()
+            .setDescription(`*There was a problem loading the videos.*`)
+            .setColor('#D09CFF');
+          console.log('A playlist couldn\'t load all the videos');
+          return message.channel.send(playlistProb);
+        });
+        for (const video of Object.values(videos)) {
+          try {
+            const video2 = await youtube.getVideoByID(video.id)
+            await handleVideo(video2, message, voiceChannel, true)
+          } catch {}
+        }
+        const serverQueue = queue.get(message.guild.id);
+        const addedPlaylist = new MessageEmbed()
+          .setTitle(`🎶 Playlist added 🎶`)
+          .setColor('#4FDFED')
+          .setDescription(`
+      ${serverQueue.songs.map(song =>`◦ ${song.title}`).join('\n')}
+      
+      ✨ use ** -q ** or ** -queue ** to bring up this list again. ✨
+      `)
+          .setFooter(`brought to you by ${message.member.displayName}`, `${message.member.user.displayAvatarURL()}`);
+
+        message.channel.send(addedPlaylist);
+      } else {
+        try {
+          var video = await youtube.getVideo(url);
+        } catch (error) {
+          try {
+            const video_finder = async () => {
+              const videoResult = await search(searchString);
+              const videos = videoResult.videos.slice(0, 5);
+
+              let index = 0;
+              const searchSongList = new MessageEmbed()
+                .setTitle(`🔍 Search...`)
+                .setColor('#D09CFF')
+                .setDescription(`
+                  ${videos.map(video =>`${++index} ◦ ${video.title}`).join('\n')}
+                  
+                  **pick a number and tell me what you 're vibin' with 👂🏽**`);
+              // message.channel.send(searchSongList);
+
+              // try{
+              //   var response = await message.channel.awaitMessages(message2 => message2.content > 0 && message2.content < 11, {
+              //     maxMatches: 1,
+              //     time: 10000, // listen for 10 seconds
+              //     errors:['time']
+              //   });
+              //   response.on('collect', message2 => {
+              //     console.log(`${message2.content}`);
+              //     const videoIndex = message2.content;
+              //     return vidmessage2.contenteoIndex;
+              //   });
+                // console.log(message2.content);
+                return (videoResult.videos.length > 1) ? videoResult.videos[0] : null;
+                
+              // } catch (err) {
+              //   console.log(err);
+              //   const noSelection = new MessageEmbed()
+              //     .setColor('#D09CFF')
+              //     .setDescription(`*Cancelling song selection*`);
+              //   return message.channel.send(noSelection);
+              // }
+
+              // const videoIndex = response.first().content;
+              // console.log(videoIndex);
+              // return (videoResult.videos.length > 1) ? videoResult.videos[0] : null;
+            }
+            var video = await video_finder(searchString);
+          } catch (err) {
+            const noSearch = new MessageEmbed()
+              .setDescription(`*I couldn't find any results via search*`)
+              .setColor('#D09CFF');
+            return message.channel.send(noSearch);
+          }
+        }
+        return handleVideo(video, message, voiceChannel);
+      }
+      return undefined;
     } else if (message.content.startsWith(`${prefix}queue`) || message.content.startsWith(`${prefix}q`)) {
       if (!serverQueue) {
         const queue = new MessageEmbed()
@@ -137,7 +237,7 @@ client.on('message', async message => {
       message.guild.me.voice.channel.leave();
 
       console.log(`${message.member.displayName} decosmic\'d the bot`);
-      console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥 ✨ is ready!');
+      console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥  ✨ is ready!');
 
       return message.channel.send(decosmic);
     } else if (message.content.startsWith(`${prefix}help`)) {
@@ -176,86 +276,16 @@ client.on('message', async message => {
         .setColor('#1BCCE8');
       message.channel.send(yeyur);
     } else {
-      message.channel.send('I dunno what that means.\nNeed help? Type **-help**');
+    const unknownMessage = new MessageEmbed()
+      .setTitle(`wat?`)
+      .setDescription(`*Need help? Type **-help***`)
+      .setColor('#D09CFF');
+    return message.channel.send(unknownMessage);
     }
   } catch (e) {
     console.log(e);
   }
 });
-
-async function execute(message, serverQueue) {
-  const args = message.content.split(' ');
-  // checks if args is present before we can replace
-  const url = args[1] ? args[1].replace(/<(.+)>/g, '$1') : '';
-  const voiceChannel = message.member.voice.channel;
-  const permissions = voiceChannel.permissionsFor(message.client.user);
-
-  if (!voiceChannel) {
-    return message.channel.send(
-      'You need to be in a voice channel to play music!'
-    );
-  }
-
-  if (!permissions.has('CONNECT') || !permissions.has('SPEAK')) {
-    return message.channel.send(
-      'I need the permissions to join and speak in your voice channel!'
-    );
-  }
-
-  let song = {};
-
-  if (url.match(/^https?:\/\/(www.youtube.com|youtube.com)\/playlist(.*)$/)) {
-    const playlist = await youtube.getPlaylist(url).catch(erro => {
-      return message.reply("A Playlist é privada ou não existe!")
-    });
-    const videos = await playlist.getVideos().catch(erro => {
-      message.reply("Ocorreu um problema ao colocar um dos vídeos da playlist na fila!'")
-    });
-    for (const video of Object.values(videos)) {
-      try {
-        const video2 = await youtube.getVideoByID(video.id)
-        await handleVideo(video2, message, voiceChannel, true)
-      } catch {}
-    }
-    const serverQueue = queue.get(message.guild.id);
-    const addedPlaylist = new MessageEmbed()
-      .setTitle(`🎶 Playlist added 🎶`)
-      .setColor('#4FDFED')
-      .setDescription(`
-      ${serverQueue.songs.map(song =>`◦ ${song.title}`).join('\n')}
-      
-      ✨ use ** -q ** or ** -queue ** to bring up this list again. ✨
-      `)
-      .setFooter(`brought to you by ${message.member.displayName}`, `${message.member.user.displayAvatarURL()}`);
-
-    message.channel.send(addedPlaylist);
-  } else {
-    try {
-      var video = await youtube.getVideo(url);
-    } catch (err) {
-      try {
-        const video_finder = async (query) => {
-          try {
-            const search_query = query.toLowerCase().replace('-p ', '');
-            const videoResult = await search(search_query);
-            return (videoResult.videos.length > 1) ? videoResult.videos[0] : null;
-          } catch (e) {
-            console.log(e);
-          }
-        }
-        var video = await video_finder(args.join(' '));
-      } catch (err) {
-        const noSearch = new MessageEmbed()
-          .setDescription(`*I couldn't find any results via search*`)
-          .setColor('#D09CFF');
-        return message.channel.send(noSearch);
-      }
-    }
-
-    return handleVideo(video, message, voiceChannel);
-  }
-  return undefined;
-}
 
 async function handleVideo(video, message, voiceChannel, playlist = false) {
   const serverQueue = queue.get(message.guild.id);
@@ -291,10 +321,12 @@ async function handleVideo(video, message, voiceChannel, playlist = false) {
       .setFooter(`queue'd by ${message.member.displayName}`, `${message.member.user.displayAvatarURL()}`);
 
     serverQueue.songs.push(video);
-    if(playlist == true) { return undefined; } else {
+    if (playlist == true) {
+      return undefined;
+    } else {
       return message.channel.send(queueing);
     }
-    
+
   }
   return undefined;
 }
@@ -307,12 +339,12 @@ function play(message, guild, song) {
       serverQueue.voiceChannel.leave();
       // serverQueue.guild.me.voice.channel.leave();
       console.log('inactive for 5 minutes, disconnecting.');
-      console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥 ✨ is ready!');
+      console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥  ✨ is ready!');
     }, 5 * 60 * 1000) // 5 minutes in ms
     return;
   }
   clearTimeout(timeoutID); // resets auto disconnect timer when a song is played
-    
+
   const dispatcher = serverQueue.connection
     .play(ytdl(song.url, {
       filter: 'audioonly'
