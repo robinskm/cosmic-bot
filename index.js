@@ -6,12 +6,12 @@ const YouTube = require('simple-youtube-api');
 
 // token and prefix
 const prefix = '-';
-const token = process.env['COSMIC_BOT_TOKEN'];
-const GOOGLE_API_KEY = process.env['GOOGLE_API_KEY']
+// const token = process.env['COSMIC_BOT_TOKEN'];
+// const GOOGLE_API_KEY = process.env['GOOGLE_API_KEY']
 
-// const {
-//   token, GOOGLE_API_KEY
-// } = require('./config.json');
+const {
+  token, GOOGLE_API_KEY
+} = require('./config.json');
 
 const client = new Client();
 const queue = new Map();
@@ -35,15 +35,12 @@ client.once('reconnecting', () => {
   }
 });
 
-client.once('disconnect', () => {
-  try {
-    console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥 ✨ disconnected!');
-  } catch (e) {
-    console.log('Catch an error: ', e)
-  }
+client.on('disconnect', (message) => {
+  console.log(`${message.member.displayName} disconnected the bot.`);
+  console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥 ✨ is ready!');
 });
 
-client.on('voiceStateUpdate', (oldState, newState) => {
+client.on('voiceStateUpdate', (oldState, newState, message) => {
   try {
     // check if someone connects or disconnects
     if (oldState.channelID === null || typeof oldState.channelID == 'undefined') return;
@@ -51,7 +48,6 @@ client.on('voiceStateUpdate', (oldState, newState) => {
     if (newState.id !== client.user.id) return;
     // clear the queue
     // reset disconnect timer
-    // 02/17 this was fucking with the guild when the bot was moved channels... removed for now - do we even need?
     clearTimeout(timeoutID)
     timeoutID = undefined
     return queue.delete(oldState.guild.id);
@@ -137,11 +133,12 @@ client.on('message', async message => {
       const decosmic = new MessageEmbed()
         .setDescription(`👋🏼 *baiii*`)
         .setColor('#D09CFF');
-      // serverQueue.songs = [];
-      // serverQueue.connection.dispatcher.end();
+
       message.guild.me.voice.channel.leave();
 
-      console.log('decosmic\'d, ✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥 ✨ is ready!');
+      console.log(`${message.member.displayName} decosmic\'d the bot`);
+      console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥 ✨ is ready!');
+
       return message.channel.send(decosmic);
     } else if (message.content.startsWith(`${prefix}help`)) {
       const commandsEmbed = new MessageEmbed()
@@ -309,8 +306,9 @@ function play(message, guild, song) {
     timeoutID = setTimeout(() => {
       serverQueue.voiceChannel.leave();
       // serverQueue.guild.me.voice.channel.leave();
+      console.log('inactive for 5 minutes, disconnecting.');
       console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥 ✨ is ready!');
-    }, 5 * 60 * 1000) // 7 minutes in ms
+    }, 5 * 60 * 1000) // 5 minutes in ms
     return;
   }
   clearTimeout(timeoutID); // resets auto disconnect timer when a song is played
