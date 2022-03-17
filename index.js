@@ -144,35 +144,25 @@ client.on('message', async message => {
                 .setDescription(`
                   ${videos.map(video =>`${++index} ◦ ${video.title}`).join('\n')}
                   
-                  **pick a number and tell me what you 're vibin' with 👂🏽**`);
+                  ** pick a number and tell me what you 're vibin' with👂🏽 ** `);
+
               // message.channel.send(searchSongList);
-
-              // try{
-              //   var response = await message.channel.awaitMessages(message2 => message2.content > 0 && message2.content < 11, {
-              //     maxMatches: 1,
-              //     time: 10000, // listen for 10 seconds
+              // try {
+              //   let filter = message2 => message2.content > 0 && message.content < 11;
+              //   var response = await message.channel.awaitMessages(filter, {
+              //     maxMatches:1,
+              //     time:10000,
               //     errors:['time']
-              //   });
-              //   response.on('collect', message2 => {
-              //     console.log(`${message2.content}`);
-              //     const videoIndex = message2.content;
-              //     return vidmessage2.contenteoIndex;
-              //   });
-                // console.log(message2.content);
-                return (videoResult.videos.length > 1) ? videoResult.videos[0] : null;
-                
-              // } catch (err) {
-              //   console.log(err);
-              //   const noSelection = new MessageEmbed()
-              //     .setColor('#D09CFF')
-              //     .setDescription(`*Cancelling song selection*`);
-              //   return message.channel.send(noSelection);
+              //   }).then(response => message.channel.send(response.first().content))
+              //   .catch(
+              //     console.log('Cannot get response'));
+              // } catch(err) {
+              //   console.log('catch');
               // }
-
-              // const videoIndex = response.first().content;
-              // console.log(videoIndex);
-              // return (videoResult.videos.length > 1) ? videoResult.videos[0] : null;
+              var videoIndex = 0;
+              return (videoResult.videos.length > 1) ? videoResult.videos[videoIndex] : null;
             }
+            // we need to have the video picked out by the time we get here
             var video = await video_finder(searchString);
           } catch (err) {
             const noSearch = new MessageEmbed()
@@ -347,7 +337,8 @@ function play(message, guild, song) {
 
   const dispatcher = serverQueue.connection
     .play(ytdl(song.url, {
-      filter: 'audioonly'
+      filter: 'audioonly',
+      quality: 'lowestaudio',
     }))
     .on('finish', () => {
       serverQueue.songs.shift(); // get the next song in queue
