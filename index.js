@@ -137,7 +137,7 @@ client.on('message', async message => {
           var video = await youtube.getVideo(url);
         } catch (error) {
           try {
-            var videos = await youtube.searchVideos(searchString, 2);
+            var videos = await youtube.searchVideos(searchString, 10);
             let index = 0;
             const searchSongList = new MessageEmbed()
               .setTitle(`🔍 Search...`)
