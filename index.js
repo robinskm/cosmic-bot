@@ -25,9 +25,13 @@ const youtube = new YouTube(GOOGLE_API_KEY);
 
 let timeoutID;
 
-client.once('ready', () => { console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥  ✨ is ready!'); });
+client.once('ready', () => {
+  console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥  ✨ is ready!');
+});
 
-client.once('reconnecting', () => { console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥  ✨ is reconnecting!'); });
+client.once('reconnecting', () => {
+  console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥  ✨ is reconnecting!');
+});
 
 client.on('disconnect', (message) => {
   console.log(`${message.member.displayName} disconnected the bot.`);
@@ -133,37 +137,34 @@ client.on('message', async message => {
           var video = await youtube.getVideo(url);
         } catch (error) {
           try {
-            const video_finder = async () => {
-              const videoResult = await search(searchString);
-              const videos = videoResult.videos.slice(0, 5);
+            var videos = await youtube.searchVideos(searchString, 10);
+            let index = 0;
+            const searchSongList = new MessageEmbed()
+              .setTitle(`🔍 Search...`)
+              .setColor('#D09CFF')
+              .setDescription(`
+                ${videos.map(video =>`${++index} ◦ ${video.title}`).join('\n')}
 
-              let index = 0;
-              const searchSongList = new MessageEmbed()
-                .setTitle(`🔍 Search...`)
-                .setColor('#D09CFF')
-                .setDescription(`
-                  ${videos.map(video =>`${++index} ◦ ${video.title}`).join('\n')}
-                  
-                  ** pick a number and tell me what you 're vibin' with👂🏽 ** `);
+                ** pick a number and tell me what you 're vibin' with👂🏽 ** `);
 
-              // message.channel.send(searchSongList);
-              // try {
-              //   let filter = message2 => message2.content > 0 && message.content < 11;
-              //   var response = await message.channel.awaitMessages(filter, {
-              //     maxMatches:1,
-              //     time:10000,
-              //     errors:['time']
-              //   }).then(response => message.channel.send(response.first().content))
-              //   .catch(
-              //     console.log('Cannot get response'));
-              // } catch(err) {
-              //   console.log('catch');
-              // }
-              var videoIndex = 0;
-              return (videoResult.videos.length > 1) ? videoResult.videos[videoIndex] : null;
+            message.channel.send(searchSongList);
+            try {
+              var response = await message.channel.awaitMessages(m => m.author.id == message.author.id, {
+                max: 1,
+                time: 10000,
+                errors: ['time']
+              });
+            } catch(error) {
+              console.log(error);
+              const noSelection = new MessageEmbed()
+                .setDescription(`*No song selected, cancelling search*`)
+                .setColor('#D09CFF');
+              return message.channel.send(noSelection);
             }
+            var videoIndex = parseInt(response.first().content);
+            var video = await youtube.getVideoByID(videos[videoIndex - 1].id);
             // we need to have the video picked out by the time we get here
-            var video = await video_finder(searchString);
+            // var video = await video_finder(searchString);
           } catch (err) {
             const noSearch = new MessageEmbed()
               .setDescription(`*I couldn't find any results via search*`)
@@ -266,11 +267,11 @@ client.on('message', async message => {
         .setColor('#1BCCE8');
       message.channel.send(yeyur);
     } else {
-    const unknownMessage = new MessageEmbed()
-      .setTitle(`wat?`)
-      .setDescription(`*Need help? Type **-help***`)
-      .setColor('#D09CFF');
-    return message.channel.send(unknownMessage);
+      const unknownMessage = new MessageEmbed()
+        .setTitle(`wat?`)
+        .setDescription(`*Need help? Type **-help***`)
+        .setColor('#D09CFF');
+      return message.channel.send(unknownMessage);
     }
   } catch (e) {
     console.log(e);

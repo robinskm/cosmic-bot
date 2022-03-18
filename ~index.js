@@ -341,7 +341,8 @@ function play(message, guild, song) {
 
   const dispatcher = serverQueue.connection
     .play(ytdl(song.url, {
-      filter: 'audioonly'
+      filter: 'audioonly',
+      quality: 'lowestaudio',
     }))
     .on('finish', () => {
       serverQueue.songs.shift(); // get the next song in queue
