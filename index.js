@@ -137,7 +137,7 @@ client.on('message', async message => {
           var video = await youtube.getVideo(url);
         } catch (error) {
           try {
-            var videos = await youtube.searchVideos(searchString, 10);
+            var videos = await youtube.searchVideos(searchString, 2);
             let index = 0;
             const searchSongList = new MessageEmbed()
               .setTitle(`🔍 Search...`)
@@ -155,13 +155,13 @@ client.on('message', async message => {
                 errors: ['time']
               });
             } catch(error) {
-              console.log(error);
               const noSelection = new MessageEmbed()
-                .setDescription(`*No song selected, cancelling search*`)
+                .setDescription(`*No song selected, grabbing the first one...*`)
                 .setColor('#D09CFF');
-              return message.channel.send(noSelection);
+              var video = await youtube.getVideoByID(videos[0].id);
+              return handleVideo(video, message, voiceChannel);
             }
-            var videoIndex = parseInt(response.first().content);
+            var videoIndex = parseInt(response.first().content) || 1;
             var video = await youtube.getVideoByID(videos[videoIndex - 1].id);
             // we need to have the video picked out by the time we get here
             // var video = await video_finder(searchString);
