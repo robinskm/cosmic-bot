@@ -156,9 +156,10 @@ client.on('message', async message => {
               });
             } catch(error) {
               const noSelection = new MessageEmbed()
-                .setDescription(`*No song selected, grabbing the first one...*`)
+                .setDescription(`*No song selected, grabbing the first one*`)
                 .setColor('#D09CFF');
               var video = await youtube.getVideoByID(videos[0].id);
+              message.channel.send(noSelection);
               return handleVideo(video, message, voiceChannel);
             }
             var videoIndex = parseInt(response.first().content) || 1;
