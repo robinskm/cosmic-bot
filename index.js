@@ -146,7 +146,9 @@ client.on('message', async message => {
               .setDescription(`
                 ${videos.map(video =>`${++index} ◦ ${video.title}`).join('\n')}
 
-                ** pick a number and tell me what you 're vibin' with👂🏽 ** `);
+                ** 0 ◦ Cancel **
+
+                ** pick a number and tell me what you 're vibin' with👂🏽 **`);
 
             message.channel.send(searchSongList);
             try {
@@ -163,10 +165,17 @@ client.on('message', async message => {
               message.channel.send(noSelection);
               return handleVideo(video, message, voiceChannel);
             }
-            var videoIndex = parseInt(response.first().content) || 1;
-            var video = await youtube.getVideoByID(videos[videoIndex - 1].id);
-            // we need to have the video picked out by the time we get here
-            // var video = await video_finder(searchString);
+            if (response.first().content == 0) {
+              const noSelection = new MessageEmbed()
+                .setDescription(`*Cancelling search*`)
+                .setColor('#D09CFF');
+              return message.channel.send(noSelection);
+            } else {
+              var videoIndex = parseInt(response.first().content) || 1;
+              var video = await youtube.getVideoByID(videos[videoIndex - 1].id);
+              // we need to have the video picked out by the time we get here
+              // var video = await video_finder(searchString);
+            }
           } catch (err) {
             const noSearch = new MessageEmbed()
               .setDescription(`*I couldn't find any results via search*`)
