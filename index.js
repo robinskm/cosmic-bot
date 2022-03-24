@@ -119,7 +119,9 @@ client.on('message', async message => {
           try {
             const video2 = await youtube.getVideoByID(video.id)
             await handleVideo(video2, message, voiceChannel, true)
-          } catch {}
+          } catch(err) {
+            console.log(err);
+          }
         }
         const serverQueue = queue.get(message.guild.id);
         const addedPlaylist = new MessageEmbed()
@@ -335,6 +337,7 @@ async function handleVideo(video, message, voiceChannel, playlist = false) {
 
 function play(message, guild, song) {
   const serverQueue = queue.get(guild.id);
+  console.log(song);
   if (!song) { // After the queue has ended
     queue.delete(guild.id);
     timeoutID = setTimeout(() => {
