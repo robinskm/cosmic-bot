@@ -12,11 +12,12 @@ const YouTube = require('simple-youtube-api');
 // token and prefix
 const prefix = '-';
 const token = process.env['COSMIC_BOT_TOKEN'];
-const GOOGLE_API_KEY = process.env['GOOGLE_API_KEY']
+const GOOGLE_API_KEY = process.env['GOOGLE_API_KEY'];
+const COOKIE = process.env['COOKIE'];
 
 // const {
 //   token,
-//   GOOGLE_API_KEY
+//   GOOGLE_API_KEY, COOKIE
 // } = require('./config.json');
 
 const client = new Client();
@@ -339,9 +340,17 @@ function play(message, guild, song) {
 
   const dispatcher = serverQueue.connection
     .play(ytdl(song.url, {
-      filter: 'audioonly',
-      quality: 'lowestaudio',
-    }))
+    requestOptions: {
+      headers: {
+        cookie: COOKIE,
+        // Optional. If not given, ytdl-core will try to find it.
+        // You can find this by going to a video's watch page, viewing the source,
+        // and searching for "ID_TOKEN".
+        // 'x-youtube-identity-token': 1324,
+      }
+    },
+    filter: 'audioonly',
+    quality: 'lowestaudio'}))
     .on('finish', () => {
       serverQueue.songs.shift(); // get the next song in queue
       play(message, guild, serverQueue.songs[0]); // play it
