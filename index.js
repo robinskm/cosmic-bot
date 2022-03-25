@@ -337,7 +337,6 @@ async function handleVideo(video, message, voiceChannel, playlist = false) {
 
 function play(message, guild, song) {
   const serverQueue = queue.get(guild.id);
-  console.log(song);
   if (!song) { // After the queue has ended
     queue.delete(guild.id);
     timeoutID = setTimeout(() => {
