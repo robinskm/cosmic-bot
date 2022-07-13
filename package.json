@@ -1,0 +1,32 @@
+{
+  "name": "Cosmic-Bot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "engines": {
+    "node": "14.x"
+  },
+  "dependencies": {
+    "@discordjs/opus": "^0.6.0",
+    "discord-player": "^5.2.2",
+    "discord.js": "^12.5.3",
+    "ffmpeg": "^0.0.4",
+    "ffmpeg-static": "^4.4.1",
+    "fluent-ffmpeg": "^2.1.2",
+    "node": "^14.17.6",
+    "node-opus": "^0.3.3",
+    "opusscript": "^0.0.8",
+    "simple-youtube-api": "^5.2.1",
+    "util": "^0.12.4",
+    "yt-search": "^2.10.3",
+    "ytdl-core": "^4.11.0",
+    "ytpl": "^2.3.0"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
