@@ -293,7 +293,7 @@ client.on('message', async message => {
         .setTitle('*d o n a t e*')
         .attachFiles(donateEmbedFile)
         .setImage('attachment://donate.jpg')
-        .setDescription('This is a small project created with 💛 for the homies of the Discord.\nA donation is absolutely not necessary but always appreciated in keeping ✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥  ✨\'s server alive!')
+        .setDescription('This is a small project created with 💛 for the homies of the Discord.\nA donation is absolutely not necessary but always appreciated in keeping this bot\'s server alive!')
         .setColor('#53b8a8')
         .setFooter(`made with 💛 by ${user.username}`, `${message.member.user.displayAvatarURL(`216336551519584257`)}`);
       message.channel.send(donate);
