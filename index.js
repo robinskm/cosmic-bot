@@ -249,7 +249,7 @@ client.on('message', async message => {
         .setTitle('*c o m m a n d s*')
         .setColor('#D09CFF')
         .setThumbnail('https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/be21784c-ba2a-4df4-bdd8-b5568ea11ec8/dbjo53q-4683aad4-5549-4d28-ab4c-64f4bfc6a309.gif?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7InBhdGgiOiJcL2ZcL2JlMjE3ODRjLWJhMmEtNGRmNC1iZGQ4LWI1NTY4ZWExMWVjOFwvZGJqbzUzcS00NjgzYWFkNC01NTQ5LTRkMjgtYWI0Yy02NGY0YmZjNmEzMDkuZ2lmIn1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmZpbGUuZG93bmxvYWQiXX0.8s-9vXfdIbwONFVQQ3wMsIeJfFRdkiPwbr2d-jk2tt8')
-        .setDescription('\n**music commands** \n**-p**: plays a song from YouTube\n**-q**: displays the queue\n**-skip**: skips a song in queue\n**-next**: skips a song in queue\n**-stop**: stops the bot and clears the queue\n\n**-decosmic**: disconnects the bot\n**-help**: read this shit again\n\n**other commands**\n**-brownies**: you\'re asking for it\n** -dripless **: displays a dripless beetch\n**-guildmaster**: pleathhh\n**-pineapple **: displays a pineapple being eaten\n**-waves** : displays a white boy\'s waves\n**-yeyur** : displays a man drunk on a toilet\n');
+        .setDescription('\n**music commands** \n**-p**: plays a song from YouTube\n**-q**: displays the queue\n**-skip**: skips a song in queue\n**-next**: skips a song in queue\n**-stop**: stops the bot and clears the queue\n\n**-decosmic**: disconnects the bot\n**-help**: read this shit again\n\n**other commands**\n**-brownies**: you\'re asking for it\n**-derby**: it really tastes like blueberries\n** -dripless **: displays a dripless beetch\n**-guildmaster**: pleathhh\n**-pineapple**: displays a pineapple being eaten\n**-waves**: displays a white boy\'s waves\n**-yeyur**: displays a man drunk on a toilet\n\n**-donate**: show a little love to the dev for keeping me alive!');
       message.channel.send(commandsEmbed);
     } else if (message.content.startsWith(`${prefix}pineapple`)) {
       const pineappleEmbedFile = new MessageAttachment('./img/pineapple.jpg');
@@ -273,12 +273,30 @@ client.on('message', async message => {
         .setColor('#8F3AEF');
       message.channel.send(waves);
     } else if (message.content.startsWith(`${prefix}yeyur`)) {
-      const yeyurEmbedFile = new MessageAttachment('./img/yeyur/yeyur.jpg');
+      const yeyurEmbedFile = new MessageAttachment('./img/yeyur.jpg');
       const yeyur = new MessageEmbed()
         .attachFiles(yeyurEmbedFile)
         .setImage('attachment://yeyur.jpg')
         .setColor('#1BCCE8');
       message.channel.send(yeyur);
+    } else if (message.content.startsWith(`${prefix}derby`)) {
+      const derbyEmbedFile = new MessageAttachment('./img/derby.jpg');
+      const derby = new MessageEmbed()
+        .attachFiles(derbyEmbedFile)
+        .setImage('attachment://derby.jpg')
+        .setColor('#53b8a8');
+      message.channel.send(derby);
+    } else if (message.content.startsWith(`${prefix}donate`)) {
+      let user = client.users.cache.get("216336551519584257");
+      const donateEmbedFile = new MessageAttachment('./img/donate.jpg');
+      const donate = new MessageEmbed()
+        .setTitle('*d o n a t e*')
+        .attachFiles(donateEmbedFile)
+        .setImage('attachment://donate.jpg')
+        .setDescription('This is a small project created with 💛 for the homies of the Discord.\nA donation is absolutely not necessary but always appreciated in keeping ✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥  ✨\'s server alive!')
+        .setColor('#53b8a8')
+        .setFooter(`made with 💛 by ${user.username}`, `${message.member.user.displayAvatarURL(`216336551519584257`)}`);
+      message.channel.send(donate);
     } else {
       const unknownMessage = new MessageEmbed()
         .setTitle(`wat?`)
