@@ -1,6 +1,7 @@
 require('dotenv').config();
 
 const { spawn } = require('node:child_process');
+const fs = require('node:fs');
 const path = require('node:path');
 const {
   AudioPlayerStatus,
@@ -34,7 +35,10 @@ const COOKIE = process.env.COOKIE;
 const ownerId = '216336551519584257';
 const fallbackThumbnail = 'https://cdn.iconscout.com/icon/free/png-256/youtube-85-226402.png';
 const idleTimeoutMs = 5 * 60 * 1000;
-const ytDlpPath = path.join(__dirname, 'tools', 'yt-dlp');
+const localYtDlpPath = path.join(__dirname, 'tools', 'yt-dlp');
+const ytDlpPath = fs.existsSync(localYtDlpPath)
+  ? localYtDlpPath
+  : youtubeDlExec.constants.YOUTUBE_DL_PATH;
 const youtubeDl = youtubeDlExec.create(ytDlpPath);
 
 if (!token) {
