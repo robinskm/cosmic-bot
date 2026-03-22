@@ -12,6 +12,7 @@ const {
   createAudioPlayer,
   createAudioResource,
   entersState,
+  generateDependencyReport,
   getVoiceConnection,
   joinVoiceChannel,
 } = require('@discordjs/voice');
@@ -59,6 +60,21 @@ const queue = new Map();
 
 client.once('clientReady', () => {
   console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥  ✨ is ready!');
+  console.log(generateDependencyReport());
+});
+
+client.on('raw', (packet) => {
+  if (packet.t === 'VOICE_STATE_UPDATE') {
+    console.log(
+      `RAW VOICE_STATE_UPDATE guild=${packet.d.guild_id} user=${packet.d.user_id} channel=${packet.d.channel_id} session=${packet.d.session_id}`
+    );
+  }
+
+  if (packet.t === 'VOICE_SERVER_UPDATE') {
+    console.log(
+      `RAW VOICE_SERVER_UPDATE guild=${packet.d.guild_id} endpoint=${packet.d.endpoint} token=${packet.d.token ? 'present' : 'missing'}`
+    );
+  }
 });
 
 client.on('shardReconnecting', () => {
@@ -193,7 +209,7 @@ client.on('messageCreate', async (message) => {
         .setTitle('*c o m m a n d s*')
         .setColor('#D09CFF')
         .setThumbnail('https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/be21784c-ba2a-4df4-bdd8-b5568ea11ec8/dbjo53q-4683aad4-5549-4d28-ab4c-64f4bfc6a309.gif?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7InBhdGgiOiJcL2ZcL2JlMjE3ODRjLWJhMmEtNGRmNC1iZGQ4LWI1NTY4ZWExMWVjOFwvZGJqbzUzcS00NjgzYWFkNC01NTQ5LTRkMjgtYWI0Yy02NGY0YmZjNmEzMDkuZ2lmIn1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmZpbGUuZG93bmxvYWQiXX0.8s-9vXfdIbwONFVQQ3wMsIeJfFRdkiPwbr2d-jk2tt8')
-        .setDescription('\n**music commands** \n**-p**: plays a song from YouTube\n**-q**: displays the queue\n**-skip**: skips a song in queue\n**-next**: skips a song in queue\n**-stop**: stops the bot and clears the queue\n\n**-decosmic**: disconnects the bot\n**-help**: read this shit again\n\n**other commands**\n**-brownies**: you\'re asking for it\n**-derby**: it really tastes like blueberries\n** -dripless **: displays a dripless beetch\n**-guildmaster**: pleathhh\n**-pineapple**: displays a pineapple being eaten\n**-waves**: displays a white boy\'s waves\n**-yeyur**: displays a man drunk on a toilet\n\n**-donate**: show a little love to the dev for keeping the bot alive!');
+        .setDescription('\n**music commands** \n**-p**: plays a song from YouTube\n**-q**: displays the queue\n**-skip**: skips a song in queue\n**-next**: skips a song in queue\n**-stop**: stops the bot and clears the queue\n\n**-decosmic**: disconnects the bot\n**-help**: read this shit again\n\n**other commands**\n**-brownies**: you\'re asking for it\n**-derby**: it really tastes like blueberries\n**-guildmaster**: pleathhh\n**-waves**: displays a white boy\'s waves\n**-squid**: displays a man with clam chowder in his beard\n\n**-donate**: show a little love to the dev for keeping the bot alive!');
 
       await message.channel.send({ embeds: [commandsEmbed] });
       return;
@@ -216,6 +232,11 @@ client.on('messageCreate', async (message) => {
 
     if (lowerContent === `${prefix}yeyur`) {
       await sendImageEmbed(message, 'yeyur.jpg', null, '#1BCCE8');
+      return;
+    }
+
+    if (lowerContent === `${prefix}squid`) {
+      await sendImageEmbed(message, 'squid.jpg', null, '#6b34eb');
       return;
     }
 
@@ -264,6 +285,10 @@ async function handlePlayCommand(message) {
     await message.channel.send({ embeds: [makeEmbed('You need to be in a voice channel to play music!', '#D09CFF')] });
     return;
   }
+
+  console.log(
+    `Play requested in guild=${message.guild.id} voiceChannel=${voiceChannel.id} type=${voiceChannel.type} user=${message.member.id}`
+  );
 
   const permissions = voiceChannel.permissionsFor(message.client.user);
   if (!permissions?.has(PermissionFlagsBits.Connect) || !permissions?.has(PermissionFlagsBits.Speak)) {
