@@ -10,6 +10,7 @@ const {
   VoiceConnectionStatus,
   createAudioPlayer,
   createAudioResource,
+  demuxProbe,
   entersState,
   getVoiceConnection,
   joinVoiceChannel,
@@ -32,6 +33,7 @@ const prefix = '-';
 const token = process.env.COSMIC_BOT_TOKEN;
 const COOKIE = process.env.COOKIE;
 const COOKIE_FILE = process.env.COOKIE_FILE || process.env.YT_DLP_COOKIE_FILE;
+const YT_COOKIES = process.env.YT_COOKIES;
 const ownerId = '216336551519584257';
 const fallbackThumbnail = 'https://cdn.iconscout.com/icon/free/png-256/youtube-85-226402.png';
 const idleTimeoutMs = 5 * 60 * 1000;
@@ -40,11 +42,7 @@ const ytDlpPath = fs.existsSync(localYtDlpPath)
   ? localYtDlpPath
   : youtubeDlExec.constants.YOUTUBE_DL_PATH;
 const youtubeDl = youtubeDlExec.create(ytDlpPath);
-const resolvedCookieFile = COOKIE_FILE
-  ? path.isAbsolute(COOKIE_FILE)
-    ? COOKIE_FILE
-    : path.resolve(__dirname, COOKIE_FILE)
-  : null;
+const resolvedCookieFile = initializeCookieFile();
 
 if (!token) {
   throw new Error('COSMIC_BOT_TOKEN is required.');
@@ -127,6 +125,11 @@ client.on('messageCreate', async (message) => {
       return;
     }
 
+    if (lowerContent.startsWith(`${prefix}playlist `) || lowerContent.startsWith(`${prefix}pl `)) {
+      await handlePlayCommand(message, { forcePlaylist: true });
+      return;
+    }
+
     if (lowerContent.startsWith(`${prefix}p `)) {
       await handlePlayCommand(message);
       return;
@@ -159,6 +162,12 @@ client.on('messageCreate', async (message) => {
         return;
       }
 
+      if (serverQueue.songs.length > 1) {
+        serverQueue.pendingStatusMessage = await message.channel.send({
+          embeds: [makeEmbed('*loading up your song...*', '#D09CFF')],
+        });
+      }
+
       cleanupPlaybackProcess(serverQueue);
       serverQueue.player.stop(true);
       return;
@@ -180,6 +189,27 @@ client.on('messageCreate', async (message) => {
       cleanupPlaybackProcess(serverQueue);
       serverQueue.player.stop(true);
       await message.channel.send({ embeds: [makeEmbed('*Song stopped, queue cleared*', '#D09CFF')] });
+      return;
+    }
+
+    if (lowerContent === `${prefix}clear`) {
+      if (!message.member.voice.channel) {
+        await message.channel.send({ embeds: [makeEmbed('You have to be in a voice channel to clear the queue!', '#D09CFF')] });
+        return;
+      }
+
+      if (!serverQueue || serverQueue.songs.length === 0) {
+        await message.channel.send({ embeds: [makeEmbed(`There wasn't a queue I could clear!`, '#D09CFF')] });
+        return;
+      }
+
+      if (serverQueue.songs.length === 1) {
+        await message.channel.send({ embeds: [makeEmbed('*There were no queued songs to clear*', '#D09CFF')] });
+        return;
+      }
+
+      serverQueue.songs = serverQueue.songs.slice(0, 1);
+      await message.channel.send({ embeds: [makeEmbed('*Queue cleared!*', '#D09CFF')] });
       return;
     }
 
@@ -206,7 +236,7 @@ client.on('messageCreate', async (message) => {
         .setTitle('*c o m m a n d s*')
         .setColor('#D09CFF')
         .setThumbnail('https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/be21784c-ba2a-4df4-bdd8-b5568ea11ec8/dbjo53q-4683aad4-5549-4d28-ab4c-64f4bfc6a309.gif?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7InBhdGgiOiJcL2ZcL2JlMjE3ODRjLWJhMmEtNGRmNC1iZGQ4LWI1NTY4ZWExMWVjOFwvZGJqbzUzcS00NjgzYWFkNC01NTQ5LTRkMjgtYWI0Yy02NGY0YmZjNmEzMDkuZ2lmIn1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmZpbGUuZG93bmxvYWQiXX0.8s-9vXfdIbwONFVQQ3wMsIeJfFRdkiPwbr2d-jk2tt8')
-        .setDescription('\n**music commands** \n**-p**: plays a song from YouTube\n**-q**: displays the queue\n**-skip**: skips a song in queue\n**-next**: skips a song in queue\n**-stop**: stops the bot and clears the queue\n\n**-decosmic**: disconnects the bot\n**-help**: read this shit again\n\n**other commands**\n**-brownies**: you\'re asking for it\n**-bread**: i think you know what\'s about to happen\n**-derby**: it really tastes like blueberries\n**-guildmaster**: pleathhh\n**-waves**: displays a white boy\'s waves\n**-squid**: displays a man with clam chowder in his beard\n\n**-donate**: show a little love to the dev for keeping the bot alive!');
+        .setDescription('\n**music commands** \n**-p**: plays a song from YouTube\n**-q**: displays the queue\n**-skip**: skips a song in queue\n**-next**: skips a song in queue\n**-clear**: clears the queue but keeps the current song playing\n**-stop**: stops the bot and clears the queue\n\n**-decosmic**: disconnects the bot\n**-help**: read this shit again\n\n**other commands**\n**-brownies**: you\'re asking for it\n**-bread**: i think you know what\'s about to happen\n**-derby**: it really tastes like blueberries\n**-guildmaster**: pleathhh\n**-waves**: displays a white boy\'s waves\n**-squid**: displays a man with clam chowder in his beard\n\n**-donate**: show a little love to the dev for keeping the bot alive!');
 
       await message.channel.send({ embeds: [commandsEmbed] });
       return;
@@ -249,7 +279,7 @@ client.on('messageCreate', async (message) => {
         .setTitle('*d o n a t e*')
         .setImage('attachment://donate.jpg')
         .setDescription('This is a small project created with 💛 for the homies of the Discord.\nA donation is absolutely not necessary but always appreciated in keeping this bot\'s server alive!')
-        .setColor('#53b8a8')
+        .setColor('#D09CFF')
         .setFooter({
           text: `made with 💛 by ${user ? user.username : 'the dev'}`,
           iconURL: user ? user.displayAvatarURL() : message.member.user.displayAvatarURL(),
@@ -272,7 +302,8 @@ client.on('messageCreate', async (message) => {
   }
 });
 
-async function handlePlayCommand(message) {
+async function handlePlayCommand(message, options = {}) {
+  const { forcePlaylist = false } = options;
   const args = message.content.trim().split(/\s+/);
   const searchString = args.slice(1).join(' ').trim();
   const url = args[1] ? args[1].replace(/<(.+)>/g, '$1') : '';
@@ -294,12 +325,14 @@ async function handlePlayCommand(message) {
     return;
   }
 
-  if (url.includes('list=')) {
+  if (url.includes('list=') && (forcePlaylist || !isYouTubeMixUrl(url))) {
     await handlePlaylist(url, message, voiceChannel);
     return;
   }
 
-  const song = await resolveSong(url, searchString, message);
+  const normalizedUrl = isYouTubeMixUrl(url) ? extractPrimaryYouTubeUrl(url) : url;
+  const normalizedSearch = isYouTubeMixUrl(url) ? normalizedUrl : searchString;
+  const song = await resolveSong(normalizedUrl, normalizedSearch, message);
   if (!song) {
     return;
   }
@@ -308,43 +341,69 @@ async function handlePlayCommand(message) {
 }
 
 async function handlePlaylist(url, message, voiceChannel) {
-  let playlist;
+  let items = [];
   try {
-    playlist = await ytpl(url, { pages: 1 });
+    const playlist = await ytpl(url, { pages: 1 });
+    items = playlist.items || [];
   } catch (error) {
     console.log('A playlist could not be found', error);
-    await message.channel.send({ embeds: [makeEmbed('*The playlist is prolly private or does not exist.*', '#D09CFF')] });
-    return;
+    items = await resolvePlaylistItems(url).catch((playlistError) => {
+      console.log('Playlist fallback failed', playlistError);
+      return [];
+    });
   }
 
-  const items = playlist.items || [];
   if (!items.length) {
     await message.channel.send({ embeds: [makeEmbed('*There was a problem loading the videos.*', '#D09CFF')] });
     return;
   }
 
-  for (const item of items) {
-    const song = normalizeSong({
+  const songs = items.map((item) => normalizeSong({
       title: item.title,
       url: item.shortUrl || item.url || (item.id ? `https://www.youtube.com/watch?v=${item.id}` : null),
       thumbnail: item.bestThumbnail?.url,
-    });
+    }))
+    .filter(Boolean);
 
-    if (!song) {
-      continue;
-    }
-
-    await handleVideo(song, message, voiceChannel, true);
+  if (!songs.length) {
+    await message.channel.send({ embeds: [makeEmbed('*There was a problem loading the playlist videos.*', '#D09CFF')] });
+    return;
   }
 
-  const serverQueue = queue.get(message.guild.id);
+  let serverQueue = queue.get(message.guild.id);
+  const playlistLoadingMessage = !serverQueue
+    ? await message.channel.send({ embeds: [makeEmbed('*loading in the playlist...*', '#D09CFF')] })
+    : null;
+
   if (!serverQueue) {
-    return;
+    await handleVideo(songs[0], message, voiceChannel, true, playlistLoadingMessage);
+    serverQueue = queue.get(message.guild.id);
+
+    if (!serverQueue) {
+      return;
+    }
+
+    for (const song of songs.slice(1)) {
+      primeSongMetadata(song);
+      serverQueue.songs.push(song);
+    }
+  } else {
+    serverQueue.textChannel = message.channel;
+    serverQueue.voiceChannel = voiceChannel;
+    serverQueue.requestedBy = {
+      name: message.member.displayName,
+      avatarURL: message.member.user.displayAvatarURL(),
+    };
+
+    for (const song of songs) {
+      primeSongMetadata(song);
+      serverQueue.songs.push(song);
+    }
   }
 
   const addedPlaylist = new EmbedBuilder()
     .setTitle('🎶 Playlist added 🎶')
-    .setColor('#4FDFED')
+    .setColor('#D09CFF')
     .setDescription(`\n${serverQueue.songs.map((song) => `◦ ${song.title}`).join('\n')}\n\n✨ use ** -q ** or ** -queue ** to bring up this list again. ✨\n`)
     .setFooter({
       text: `brought to you by ${message.member.displayName}`,
@@ -413,11 +472,11 @@ async function resolveSong(url, searchString, message) {
   }
 }
 
-async function handleVideo(song, message, voiceChannel, playlist = false) {
+async function handleVideo(song, message, voiceChannel, playlist = false, statusMessage = null) {
   let serverQueue = queue.get(message.guild.id);
-  const loadingMessage = !playlist
+  const loadingMessage = statusMessage || (!playlist
     ? await message.channel.send({ embeds: [makeEmbed('*loading up your song...*', '#D09CFF')] })
-    : null;
+    : null);
   primeSongMetadata(song);
 
   if (!serverQueue) {
@@ -450,6 +509,7 @@ async function handleVideo(song, message, voiceChannel, playlist = false) {
       ytDlpProcess: null,
       timeoutId: null,
       lastPlaybackError: null,
+      pendingStatusMessage: null,
     };
 
     attachPlayerListeners(message.guild, serverQueue);
@@ -492,6 +552,8 @@ async function handleVideo(song, message, voiceChannel, playlist = false) {
   }
 
   if (!playlist) {
+    await maybeHydrateSongMetadata(song);
+
     const queueing = new EmbedBuilder()
       .setTitle(`📌 Queuein' up`)
       .setColor('#D09CFF')
@@ -516,8 +578,15 @@ function attachPlayerListeners(guild, serverQueue) {
     cleanupPlaybackProcess(serverQueue);
 
     if (serverQueue.songs.length > 0) {
-      await playSong(guild, serverQueue.songs[0]);
+      const statusMessage = serverQueue.pendingStatusMessage;
+      serverQueue.pendingStatusMessage = null;
+      await playSong(guild, serverQueue.songs[0], statusMessage);
       return;
+    }
+
+    if (serverQueue.pendingStatusMessage) {
+      await serverQueue.pendingStatusMessage.delete().catch(() => null);
+      serverQueue.pendingStatusMessage = null;
     }
 
     clearIdleTimeout(serverQueue);
@@ -536,8 +605,15 @@ function attachPlayerListeners(guild, serverQueue) {
     serverQueue.songs.shift();
     cleanupPlaybackProcess(serverQueue);
     if (serverQueue.songs.length > 0) {
-      void playSong(guild, serverQueue.songs[0]);
+      const statusMessage = serverQueue.pendingStatusMessage;
+      serverQueue.pendingStatusMessage = null;
+      void playSong(guild, serverQueue.songs[0], statusMessage);
       return;
+    }
+
+    if (serverQueue.pendingStatusMessage) {
+      void serverQueue.pendingStatusMessage.delete().catch(() => null);
+      serverQueue.pendingStatusMessage = null;
     }
 
     getVoiceConnection(guild.id)?.destroy();
@@ -555,116 +631,13 @@ async function playSong(guild, song, statusMessage = null) {
   clearIdleTimeout(serverQueue);
   primeSongMetadata(song);
 
-  let resource;
   try {
     cleanupPlaybackProcess(serverQueue);
     serverQueue.lastPlaybackError = null;
-    const ytDlpArgs = [
-      song.url,
-      '-f',
-      'bestaudio/best',
-      '-o',
-      '-',
-      '-N',
-      '4',
-      '--no-playlist',
-      '--no-progress',
-      '--no-warnings',
-      '--no-check-certificates',
-    ];
+    const resource = await createSongResource(serverQueue, song);
 
-    if (resolvedCookieFile) {
-      ytDlpArgs.push('--cookies', resolvedCookieFile);
-    } else if (COOKIE) {
-      ytDlpArgs.push('--add-header', `cookie:${COOKIE}`);
-    }
-
-    const ytDlp = spawn(ytDlpPath, ytDlpArgs, {
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-
-    ytDlp.stdout.on('error', (error) => {
-      if (error.code !== 'EPIPE') {
-        console.error(`yt-dlp stdout error: ${error.message}`);
-      }
-    });
-
-    ytDlp.stderr.on('data', (chunk) => {
-      const message = chunk.toString().trim();
-      if (message) {
-        if (message.includes('Sign in to confirm you’re not a bot') || message.includes("Sign in to confirm you're not a bot")) {
-          serverQueue.lastPlaybackError = 'YouTube blocked this video. Add a Netscape-format cookies file via `COOKIE_FILE` to keep playback working.';
-        }
-        console.error(`yt-dlp: ${message}`);
-      }
-    });
-
-    ytDlp.on('close', () => {
-      if (serverQueue.ytDlpProcess === ytDlp) {
-        serverQueue.ytDlpProcess = null;
-      }
-    });
-
-    const ffmpegArgs = [
-      '-nostdin',
-      '-fflags',
-      'nobuffer',
-      '-flags',
-      'low_delay',
-      '-probesize',
-      '32k',
-      '-i',
-      'pipe:0',
-      '-vn',
-      '-sn',
-      '-dn',
-      '-loglevel',
-      'error',
-      '-f',
-      's16le',
-      '-ar',
-      '48000',
-      '-ac',
-      '2',
-      'pipe:1'
-    ];
-
-    const ffmpeg = spawn(
-      ffmpegPath,
-      ffmpegArgs,
-      {
-        stdio: ['pipe', 'pipe', 'pipe'],
-      }
-    );
-
-    ffmpeg.stdin.on('error', (error) => {
-      if (error.code !== 'EPIPE') {
-        console.error(`ffmpeg stdin error: ${error.message}`);
-      }
-    });
-
-    ytDlp.stdout.pipe(ffmpeg.stdin);
-
-    ffmpeg.stderr.on('data', (chunk) => {
-      const message = chunk.toString().trim();
-      if (message) {
-        console.error(`ffmpeg: ${message}`);
-      }
-    });
-
-    ffmpeg.on('close', () => {
-      if (serverQueue.ffmpegProcess === ffmpeg) {
-        serverQueue.ffmpegProcess = null;
-      }
-    });
-
-    serverQueue.ytDlpProcess = ytDlp;
-    serverQueue.ffmpegProcess = ffmpeg;
-
-    resource = createAudioResource(ffmpeg.stdout, {
-      inputType: StreamType.Raw,
-      inlineVolume: true,
-    });
+    resource.volume?.setVolume(serverQueue.volume);
+    serverQueue.player.play(resource);
   } catch (error) {
     console.error(error);
     if (statusMessage) {
@@ -683,9 +656,6 @@ async function playSong(guild, song, statusMessage = null) {
     queue.delete(guild.id);
     return;
   }
-
-  resource.volume?.setVolume(serverQueue.volume);
-  serverQueue.player.play(resource);
 
   if (serverQueue.songs[1]) {
     primeSongMetadata(serverQueue.songs[1]);
@@ -713,7 +683,7 @@ async function playSong(guild, song, statusMessage = null) {
     }
   }
 
-  await maybeHydrateSongMetadata(song, 1200);
+  await maybeHydrateSongMetadata(song);
 
   const playing = new EmbedBuilder()
     .setTitle(`🎶 Now Playing 🎶`)
@@ -831,6 +801,43 @@ function isYouTubeWatchUrl(url) {
   }
 }
 
+function isYouTubeMixUrl(url) {
+  if (!url) {
+    return false;
+  }
+
+  try {
+    const parsedUrl = new URL(url);
+    const listId = parsedUrl.searchParams.get('list') || '';
+    return isYouTubeWatchUrl(url) && listId.startsWith('RD');
+  } catch {
+    return false;
+  }
+}
+
+function extractPrimaryYouTubeUrl(url) {
+  if (!url) {
+    return url;
+  }
+
+  try {
+    const parsedUrl = new URL(url);
+
+    if (parsedUrl.hostname === 'youtu.be') {
+      return `https://www.youtube.com/watch?v=${parsedUrl.pathname.replace(/^\/+/, '')}`;
+    }
+
+    const videoId = parsedUrl.searchParams.get('v');
+    if (videoId) {
+      return `https://www.youtube.com/watch?v=${videoId}`;
+    }
+  } catch {
+    return url;
+  }
+
+  return url;
+}
+
 async function resolveYtDlpInfo(url) {
   const addHeader = [];
   if (COOKIE) {
@@ -854,6 +861,182 @@ async function resolveYtDlpInfo(url) {
     }
     throw error;
   }
+}
+
+async function resolvePlaylistItems(url) {
+  const addHeader = [];
+  if (COOKIE) {
+    addHeader.push(`cookie:${COOKIE}`);
+  }
+  const cookieOptions = resolvedCookieFile ? { cookies: resolvedCookieFile } : {};
+
+  const info = await youtubeDl(url, {
+    dumpSingleJson: true,
+    flatPlaylist: true,
+    yesPlaylist: true,
+    noCheckCertificates: true,
+    noWarnings: true,
+    ...cookieOptions,
+    ...(addHeader.length ? { addHeader } : {}),
+  });
+
+  const entries = Array.isArray(info?.entries) ? info.entries : [];
+  return entries.map((entry) => ({
+    title: entry.title,
+    url: entry.url || entry.webpage_url || (entry.id ? `https://www.youtube.com/watch?v=${entry.id}` : null),
+    id: entry.id,
+    thumbnail: entry.thumbnail,
+    thumbnails: entry.thumbnails,
+  })).filter((entry) => entry.url);
+}
+
+async function createSongResource(serverQueue, song) {
+  const ytDlp = spawnYtDlpProcess(serverQueue, song.url);
+  const probe = await probeYtDlpStream(ytDlp.stdout);
+
+  if (probe.type === StreamType.WebmOpus || probe.type === StreamType.OggOpus) {
+    return createAudioResource(probe.stream, {
+      inputType: probe.type,
+      inlineVolume: true,
+    });
+  }
+
+  const ffmpeg = spawnFfmpegProcess(serverQueue, probe.stream);
+  return createAudioResource(ffmpeg.stdout, {
+    inputType: StreamType.Raw,
+    inlineVolume: true,
+  });
+}
+
+function spawnYtDlpProcess(serverQueue, url) {
+  const ytDlpArgs = [
+    url,
+    '-f',
+    'bestaudio/best',
+    '-o',
+    '-',
+    '-N',
+    '8',
+    '--no-playlist',
+    '--no-progress',
+    '--no-warnings',
+    '--no-check-certificates',
+  ];
+
+  if (resolvedCookieFile) {
+    ytDlpArgs.push('--cookies', resolvedCookieFile);
+  } else if (COOKIE) {
+    ytDlpArgs.push('--add-header', `cookie:${COOKIE}`);
+  }
+
+  const ytDlp = spawn(ytDlpPath, ytDlpArgs, {
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+
+  ytDlp.stdout.on('error', (error) => {
+    if (error.code !== 'EPIPE') {
+      console.error(`yt-dlp stdout error: ${error.message}`);
+    }
+  });
+
+  ytDlp.stderr.on('data', (chunk) => {
+    const message = chunk.toString().trim();
+    if (message) {
+      console.error(`yt-dlp: ${message}`);
+    }
+  });
+
+  ytDlp.on('close', () => {
+    if (serverQueue.ytDlpProcess === ytDlp) {
+      serverQueue.ytDlpProcess = null;
+    }
+  });
+
+  serverQueue.ytDlpProcess = ytDlp;
+  serverQueue.ffmpegProcess = null;
+
+  return ytDlp;
+}
+
+async function probeYtDlpStream(stream) {
+  return demuxProbe(stream, 2048).catch(() => ({
+    stream,
+    type: StreamType.Arbitrary,
+  }));
+}
+
+function spawnFfmpegProcess(serverQueue, inputStream) {
+  const ffmpegArgs = [
+    '-nostdin',
+    '-thread_queue_size',
+    '1024',
+    '-fflags',
+    'nobuffer',
+    '-flags',
+    'low_delay',
+    '-probesize',
+    '32k',
+    '-i',
+    'pipe:0',
+    '-vn',
+    '-sn',
+    '-dn',
+    '-loglevel',
+    'error',
+    '-f',
+    's16le',
+    '-ar',
+    '48000',
+    '-ac',
+    '2',
+    'pipe:1'
+  ];
+
+  const ffmpeg = spawn(ffmpegPath, ffmpegArgs, {
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
+
+  ffmpeg.stdin.on('error', (error) => {
+    if (error.code !== 'EPIPE') {
+      console.error(`ffmpeg stdin error: ${error.message}`);
+    }
+  });
+
+  inputStream.pipe(ffmpeg.stdin);
+
+  ffmpeg.stderr.on('data', (chunk) => {
+    const message = chunk.toString().trim();
+    if (message) {
+      console.error(`ffmpeg: ${message}`);
+    }
+  });
+
+  ffmpeg.on('close', () => {
+    if (serverQueue.ffmpegProcess === ffmpeg) {
+      serverQueue.ffmpegProcess = null;
+    }
+  });
+
+  serverQueue.ffmpegProcess = ffmpeg;
+  return ffmpeg;
+}
+
+function initializeCookieFile() {
+  const configuredPath = COOKIE_FILE
+    ? (path.isAbsolute(COOKIE_FILE) ? COOKIE_FILE : path.resolve(__dirname, COOKIE_FILE))
+    : path.resolve(__dirname, 'cookies.txt');
+
+  if (YT_COOKIES) {
+    fs.mkdirSync(path.dirname(configuredPath), { recursive: true });
+    fs.writeFileSync(configuredPath, YT_COOKIES, 'utf8');
+    return configuredPath;
+  }
+
+  if (COOKIE_FILE && fs.existsSync(configuredPath)) {
+    return configuredPath;
+  }
+
+  return null;
 }
 
 function cleanupPlaybackProcess(serverQueue) {
