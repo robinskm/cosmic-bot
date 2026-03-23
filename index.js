@@ -35,6 +35,7 @@ const COOKIE = process.env.COOKIE;
 const COOKIE_FILE = process.env.COOKIE_FILE || process.env.YT_DLP_COOKIE_FILE;
 const YT_COOKIES = process.env.YT_COOKIES;
 const YT_COOKIES_BASE64 = process.env.YT_COOKIES_BASE64;
+const YT_DLP_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36';
 const ownerId = '216336551519584257';
 const fallbackThumbnail = 'https://cdn.iconscout.com/icon/free/png-256/youtube-85-226402.png';
 const idleTimeoutMs = 5 * 60 * 1000;
@@ -841,7 +842,10 @@ function extractPrimaryYouTubeUrl(url) {
 }
 
 async function resolveYtDlpInfo(url) {
-  const addHeader = [];
+  const addHeader = [
+    `User-Agent:${YT_DLP_USER_AGENT}`,
+    'Referer:https://www.youtube.com/',
+  ];
   if (COOKIE) {
     addHeader.push(`cookie:${COOKIE}`);
   }
@@ -865,7 +869,10 @@ async function resolveYtDlpInfo(url) {
 }
 
 async function resolvePlaylistItems(url) {
-  const addHeader = [];
+  const addHeader = [
+    `User-Agent:${YT_DLP_USER_AGENT}`,
+    'Referer:https://www.youtube.com/',
+  ];
   if (COOKIE) {
     addHeader.push(`cookie:${COOKIE}`);
   }
@@ -914,6 +921,10 @@ function spawnYtDlpProcess(serverQueue, url) {
     url,
     '-f',
     'best[acodec!=none]/best',
+    '--user-agent',
+    YT_DLP_USER_AGENT,
+    '--add-header',
+    'Referer:https://www.youtube.com/',
     '-o',
     '-',
     '-N',
