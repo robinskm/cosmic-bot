@@ -34,6 +34,7 @@ const token = process.env.COSMIC_BOT_TOKEN;
 const COOKIE = process.env.COOKIE;
 const COOKIE_FILE = process.env.COOKIE_FILE || process.env.YT_DLP_COOKIE_FILE;
 const YT_COOKIES = process.env.YT_COOKIES;
+const YT_COOKIES_BASE64 = process.env.YT_COOKIES_BASE64;
 const ownerId = '216336551519584257';
 const fallbackThumbnail = 'https://cdn.iconscout.com/icon/free/png-256/youtube-85-226402.png';
 const idleTimeoutMs = 5 * 60 * 1000;
@@ -1026,14 +1027,31 @@ function initializeCookieFile() {
     ? (path.isAbsolute(COOKIE_FILE) ? COOKIE_FILE : path.resolve(__dirname, COOKIE_FILE))
     : path.resolve(__dirname, 'cookies.txt');
 
-  if (YT_COOKIES) {
+  const decodedCookies = decodeCookieSecret();
+
+  if (decodedCookies) {
     fs.mkdirSync(path.dirname(configuredPath), { recursive: true });
-    fs.writeFileSync(configuredPath, YT_COOKIES, 'utf8');
+    fs.writeFileSync(configuredPath, decodedCookies, 'utf8');
     return configuredPath;
   }
 
   if (COOKIE_FILE && fs.existsSync(configuredPath)) {
     return configuredPath;
+  }
+
+  return null;
+}
+
+function decodeCookieSecret() {
+  if (YT_COOKIES_BASE64) {
+    return Buffer.from(YT_COOKIES_BASE64, 'base64').toString('utf8');
+  }
+
+  if (YT_COOKIES) {
+    return YT_COOKIES
+      .replace(/\\r\\n/g, '\n')
+      .replace(/\\n/g, '\n')
+      .replace(/\\t/g, '\t');
   }
 
   return null;
