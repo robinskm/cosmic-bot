@@ -106,6 +106,11 @@ client.on('messageCreate', async (message) => {
       return;
     }
 
+    if (lowerContent.startsWith(`${prefix}bread`)) {
+      await message.channel.send({ embeds: [makeEmbed('check it 🫵🏼', '#D09CFF')] });
+      return;
+    }
+
     if (lowerContent.startsWith(`${prefix}guildmaster`)) {
       await sendImageEmbed(message, 'guildmaster.jpg', `*Guildmasther pleath, lawd have merthy  😩💦*`, '#FF908B');
       return;
@@ -194,7 +199,7 @@ client.on('messageCreate', async (message) => {
         .setTitle('*c o m m a n d s*')
         .setColor('#D09CFF')
         .setThumbnail('https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/be21784c-ba2a-4df4-bdd8-b5568ea11ec8/dbjo53q-4683aad4-5549-4d28-ab4c-64f4bfc6a309.gif?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7InBhdGgiOiJcL2ZcL2JlMjE3ODRjLWJhMmEtNGRmNC1iZGQ4LWI1NTY4ZWExMWVjOFwvZGJqbzUzcS00NjgzYWFkNC01NTQ5LTRkMjgtYWI0Yy02NGY0YmZjNmEzMDkuZ2lmIn1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmZpbGUuZG93bmxvYWQiXX0.8s-9vXfdIbwONFVQQ3wMsIeJfFRdkiPwbr2d-jk2tt8')
-        .setDescription('\n**music commands** \n**-p**: plays a song from YouTube\n**-q**: displays the queue\n**-skip**: skips a song in queue\n**-next**: skips a song in queue\n**-stop**: stops the bot and clears the queue\n\n**-decosmic**: disconnects the bot\n**-help**: read this shit again\n\n**other commands**\n**-brownies**: you\'re asking for it\n**-derby**: it really tastes like blueberries\n**-guildmaster**: pleathhh\n**-waves**: displays a white boy\'s waves\n**-squid**: displays a man with clam chowder in his beard\n\n**-donate**: show a little love to the dev for keeping the bot alive!');
+        .setDescription('\n**music commands** \n**-p**: plays a song from YouTube\n**-q**: displays the queue\n**-skip**: skips a song in queue\n**-next**: skips a song in queue\n**-stop**: stops the bot and clears the queue\n\n**-decosmic**: disconnects the bot\n**-help**: read this shit again\n\n**other commands**\n**-brownies**: you\'re asking for it\n**-bread**: i think you know what\'s about to happen\n**-derby**: it really tastes like blueberries\n**-guildmaster**: pleathhh\n**-waves**: displays a white boy\'s waves\n**-squid**: displays a man with clam chowder in his beard\n\n**-donate**: show a little love to the dev for keeping the bot alive!');
 
       await message.channel.send({ embeds: [commandsEmbed] });
       return;

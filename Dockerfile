@@ -4,6 +4,10 @@ WORKDIR /app
 
 ENV YOUTUBE_DL_SKIP_PYTHON_CHECK=1
 
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends python3 \
+  && rm -rf /var/lib/apt/lists/*
+
 COPY package*.json ./
 RUN npm ci --omit=dev
 
