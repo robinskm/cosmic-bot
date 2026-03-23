@@ -63,6 +63,7 @@ const queue = new Map();
 
 client.once('clientReady', () => {
   console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥  ✨ is ready!');
+  logCookieStatus();
 });
 
 client.on('shardReconnecting', () => {
@@ -1055,6 +1056,20 @@ function decodeCookieSecret() {
   }
 
   return null;
+}
+
+function logCookieStatus() {
+  if (!resolvedCookieFile) {
+    console.log('yt-dlp cookies: disabled');
+    return;
+  }
+
+  try {
+    const stats = fs.statSync(resolvedCookieFile);
+    console.log(`yt-dlp cookies: enabled path=${resolvedCookieFile} bytes=${stats.size}`);
+  } catch (error) {
+    console.log(`yt-dlp cookies: configured but unreadable path=${resolvedCookieFile} error=${error.message}`);
+  }
 }
 
 function cleanupPlaybackProcess(serverQueue) {
