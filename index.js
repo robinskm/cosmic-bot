@@ -850,7 +850,7 @@ async function resolveYtDlpInfo(url) {
   try {
     return await youtubeDl(url, {
       dumpSingleJson: true,
-      format: 'bestaudio/best',
+      format: 'bestaudio*/best',
       noCheckCertificates: true,
       noWarnings: true,
       noPlaylist: true,
@@ -914,7 +914,7 @@ function spawnYtDlpProcess(serverQueue, url) {
   const ytDlpArgs = [
     url,
     '-f',
-    'bestaudio/best',
+    'bestaudio*/best',
     '-o',
     '-',
     '-N',
