@@ -40,7 +40,8 @@ const ownerId = '216336551519584257';
 const fallbackThumbnail = 'https://cdn.iconscout.com/icon/free/png-256/youtube-85-226402.png';
 const idleTimeoutMs = 5 * 60 * 1000;
 const localYtDlpPath = path.join(__dirname, 'tools', 'yt-dlp');
-const ytDlpPath = fs.existsSync(localYtDlpPath)
+const useLocalYtDlp = process.platform === 'darwin' && fs.existsSync(localYtDlpPath);
+const ytDlpPath = useLocalYtDlp
   ? localYtDlpPath
   : youtubeDlExec.constants.YOUTUBE_DL_PATH;
 const youtubeDl = youtubeDlExec.create(ytDlpPath);
