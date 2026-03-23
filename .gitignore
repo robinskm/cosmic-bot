@@ -3,4 +3,3 @@ config.json
 .DS_Store
 commands
 .env
-cookies.txt

@@ -31,10 +31,6 @@ const ytpl = require('ytpl');
 
 const prefix = '-';
 const token = process.env.COSMIC_BOT_TOKEN;
-const COOKIE = process.env.COOKIE;
-const COOKIE_FILE = process.env.COOKIE_FILE || process.env.YT_DLP_COOKIE_FILE;
-const YT_COOKIES = process.env.YT_COOKIES;
-const YT_COOKIES_BASE64 = process.env.YT_COOKIES_BASE64;
 const YT_DLP_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36';
 const ownerId = '216336551519584257';
 const fallbackThumbnail = 'https://cdn.iconscout.com/icon/free/png-256/youtube-85-226402.png';
@@ -45,7 +41,6 @@ const ytDlpPath = useLocalYtDlp
   ? localYtDlpPath
   : youtubeDlExec.constants.YOUTUBE_DL_PATH;
 const youtubeDl = youtubeDlExec.create(ytDlpPath);
-const resolvedCookieFile = initializeCookieFile();
 
 if (!token) {
   throw new Error('COSMIC_BOT_TOKEN is required.');
@@ -65,7 +60,6 @@ const queue = new Map();
 
 client.once('clientReady', () => {
   console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥  ✨ is ready!');
-  logCookieStatus();
 });
 
 client.on('shardReconnecting', () => {
@@ -843,23 +837,16 @@ function extractPrimaryYouTubeUrl(url) {
 }
 
 async function resolveYtDlpInfo(url) {
-  const addHeader = [
-    `User-Agent:${YT_DLP_USER_AGENT}`,
-    'Referer:https://www.youtube.com/',
-  ];
-  if (COOKIE) {
-    addHeader.push(`cookie:${COOKIE}`);
-  }
-  const cookieOptions = resolvedCookieFile ? { cookies: resolvedCookieFile } : {};
-
   try {
     return await youtubeDl(url, {
       dumpSingleJson: true,
       noCheckCertificates: true,
       noWarnings: true,
       noPlaylist: true,
-      ...cookieOptions,
-      ...(addHeader.length ? { addHeader } : {}),
+      addHeader: [
+        `User-Agent:${YT_DLP_USER_AGENT}`,
+        'Referer:https://www.youtube.com/',
+      ],
     });
   } catch (error) {
     if (`${error?.stderr || ''}`.includes('Only Python versions 3.10 and above are supported by yt-dlp')) {
@@ -870,23 +857,16 @@ async function resolveYtDlpInfo(url) {
 }
 
 async function resolvePlaylistItems(url) {
-  const addHeader = [
-    `User-Agent:${YT_DLP_USER_AGENT}`,
-    'Referer:https://www.youtube.com/',
-  ];
-  if (COOKIE) {
-    addHeader.push(`cookie:${COOKIE}`);
-  }
-  const cookieOptions = resolvedCookieFile ? { cookies: resolvedCookieFile } : {};
-
   const info = await youtubeDl(url, {
     dumpSingleJson: true,
     flatPlaylist: true,
     yesPlaylist: true,
     noCheckCertificates: true,
     noWarnings: true,
-    ...cookieOptions,
-    ...(addHeader.length ? { addHeader } : {}),
+    addHeader: [
+      `User-Agent:${YT_DLP_USER_AGENT}`,
+      'Referer:https://www.youtube.com/',
+    ],
   });
 
   const entries = Array.isArray(info?.entries) ? info.entries : [];
@@ -918,10 +898,13 @@ async function createSongResource(serverQueue, song) {
 }
 
 function spawnYtDlpProcess(serverQueue, url) {
+  const formatArgs = useLocalYtDlp
+    ? ['-f', 'best[acodec!=none]/best']
+    : [];
+
   const ytDlpArgs = [
     url,
-    '-f',
-    'best[acodec!=none]/best',
+    ...formatArgs,
     '--user-agent',
     YT_DLP_USER_AGENT,
     '--add-header',
@@ -935,12 +918,6 @@ function spawnYtDlpProcess(serverQueue, url) {
     '--no-warnings',
     '--no-check-certificates',
   ];
-
-  if (resolvedCookieFile) {
-    ytDlpArgs.push('--cookies', resolvedCookieFile);
-  } else if (COOKIE) {
-    ytDlpArgs.push('--add-header', `cookie:${COOKIE}`);
-  }
 
   const ytDlp = spawn(ytDlpPath, ytDlpArgs, {
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -1032,55 +1009,6 @@ function spawnFfmpegProcess(serverQueue, inputStream) {
 
   serverQueue.ffmpegProcess = ffmpeg;
   return ffmpeg;
-}
-
-function initializeCookieFile() {
-  const configuredPath = COOKIE_FILE
-    ? (path.isAbsolute(COOKIE_FILE) ? COOKIE_FILE : path.resolve(__dirname, COOKIE_FILE))
-    : path.resolve(__dirname, 'cookies.txt');
-
-  const decodedCookies = decodeCookieSecret();
-
-  if (decodedCookies) {
-    fs.mkdirSync(path.dirname(configuredPath), { recursive: true });
-    fs.writeFileSync(configuredPath, decodedCookies, 'utf8');
-    return configuredPath;
-  }
-
-  if (COOKIE_FILE && fs.existsSync(configuredPath)) {
-    return configuredPath;
-  }
-
-  return null;
-}
-
-function decodeCookieSecret() {
-  if (YT_COOKIES_BASE64) {
-    return Buffer.from(YT_COOKIES_BASE64, 'base64').toString('utf8');
-  }
-
-  if (YT_COOKIES) {
-    return YT_COOKIES
-      .replace(/\\r\\n/g, '\n')
-      .replace(/\\n/g, '\n')
-      .replace(/\\t/g, '\t');
-  }
-
-  return null;
-}
-
-function logCookieStatus() {
-  if (!resolvedCookieFile) {
-    console.log('yt-dlp cookies: disabled');
-    return;
-  }
-
-  try {
-    const stats = fs.statSync(resolvedCookieFile);
-    console.log(`yt-dlp cookies: enabled path=${resolvedCookieFile} bytes=${stats.size}`);
-  } catch (error) {
-    console.log(`yt-dlp cookies: configured but unreadable path=${resolvedCookieFile} error=${error.message}`);
-  }
 }
 
 function cleanupPlaybackProcess(serverQueue) {
