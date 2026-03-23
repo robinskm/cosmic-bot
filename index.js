@@ -7,12 +7,10 @@ const {
   AudioPlayerStatus,
   NoSubscriberBehavior,
   StreamType,
-  VoiceConnectionDisconnectReason,
   VoiceConnectionStatus,
   createAudioPlayer,
   createAudioResource,
   entersState,
-  generateDependencyReport,
   getVoiceConnection,
   joinVoiceChannel,
 } = require('@discordjs/voice');
@@ -60,21 +58,6 @@ const queue = new Map();
 
 client.once('clientReady', () => {
   console.log('✨ 𝕔 𝕠 𝕤 𝕞 𝕚 𝕔 𝕓 𝕠 𝕥  ✨ is ready!');
-  console.log(generateDependencyReport());
-});
-
-client.on('raw', (packet) => {
-  if (packet.t === 'VOICE_STATE_UPDATE') {
-    console.log(
-      `RAW VOICE_STATE_UPDATE guild=${packet.d.guild_id} user=${packet.d.user_id} channel=${packet.d.channel_id} session=${packet.d.session_id}`
-    );
-  }
-
-  if (packet.t === 'VOICE_SERVER_UPDATE') {
-    console.log(
-      `RAW VOICE_SERVER_UPDATE guild=${packet.d.guild_id} endpoint=${packet.d.endpoint} token=${packet.d.token ? 'present' : 'missing'}`
-    );
-  }
 });
 
 client.on('shardReconnecting', () => {
@@ -146,7 +129,8 @@ client.on('messageCreate', async (message) => {
 
       const queueEmbed = new EmbedBuilder()
         .setTitle('📌 Queue List')
-        .setDescription(`${serverQueue.songs.map((song) => `◦ ${song.title}`).join('\n')}\n\n**Now Playing:** ${serverQueue.songs[0].title}`)
+        .setDescription(`${serverQueue.songs.map((song) => `◦ ${song.title}`).join('\n')}\n\n**Now Playing:**\n**${serverQueue.songs[0].title}**`)
+        .setImage(serverQueue.songs[0].thumbnail || fallbackThumbnail)
         .setColor('#D09CFF');
 
       await message.channel.send({ embeds: [queueEmbed] });
@@ -181,6 +165,7 @@ client.on('messageCreate', async (message) => {
 
       serverQueue.songs = [];
       clearIdleTimeout(serverQueue);
+      cleanupPlaybackProcess(serverQueue);
       serverQueue.player.stop(true);
       await message.channel.send({ embeds: [makeEmbed('*Song stopped, queue cleared*', '#D09CFF')] });
       return;
@@ -286,10 +271,6 @@ async function handlePlayCommand(message) {
     return;
   }
 
-  console.log(
-    `Play requested in guild=${message.guild.id} voiceChannel=${voiceChannel.id} type=${voiceChannel.type} user=${message.member.id}`
-  );
-
   const permissions = voiceChannel.permissionsFor(message.client.user);
   if (!permissions?.has(PermissionFlagsBits.Connect) || !permissions?.has(PermissionFlagsBits.Speak)) {
     await message.channel.send({ embeds: [makeEmbed('I need the permissions to join and speak in your voice channel!', '#D09CFF')] });
@@ -363,8 +344,11 @@ async function handlePlaylist(url, message, voiceChannel) {
 
 async function resolveSong(url, searchString, message) {
   if (isYouTubeWatchUrl(url)) {
-    const info = await resolveVideoMetadata(url).catch(() => null);
-    return normalizeSong(info || { title: url, url, thumbnail: null });
+    return normalizeSong({
+      title: searchString || 'YouTube audio',
+      url,
+      thumbnail: null,
+    });
   }
 
   let videos;
@@ -420,6 +404,19 @@ async function resolveSong(url, searchString, message) {
 async function handleVideo(song, message, voiceChannel, playlist = false) {
   let serverQueue = queue.get(message.guild.id);
 
+  if (shouldRefreshSongMetadata(song)) {
+    const metadata = await resolveVideoMetadata(song.url).catch(() => null);
+    if (metadata) {
+      song.title = metadata.title || song.title;
+      song.thumbnail = metadata.thumbnail || pickThumbnail(metadata.thumbnails) || song.thumbnail;
+      song.metadataLoaded = true;
+    }
+  }
+
+  const loadingMessage = !playlist
+    ? await message.channel.send({ embeds: [makeEmbed('*loading up your song...*', '#D09CFF')] })
+    : null;
+
   if (!serverQueue) {
     const existingConnection = getVoiceConnection(message.guild.id);
     existingConnection?.destroy();
@@ -467,6 +464,9 @@ async function handleVideo(song, message, voiceChannel, playlist = false) {
       connection.destroy();
       queue.delete(message.guild.id);
       console.log(error);
+      if (loadingMessage) {
+        await loadingMessage.delete().catch(() => null);
+      }
       await message.channel.send({
         embeds: [makeEmbed('*I joined the channel, but Discord voice never became ready to play audio.*', '#D09CFF')],
       });
@@ -484,6 +484,9 @@ async function handleVideo(song, message, voiceChannel, playlist = false) {
 
   if (serverQueue.player.state.status !== AudioPlayerStatus.Playing && serverQueue.player.state.status !== AudioPlayerStatus.Buffering) {
     await playSong(message.guild, serverQueue.songs[0]);
+    if (loadingMessage) {
+      await loadingMessage.delete().catch(() => null);
+    }
     return;
   }
 
@@ -491,8 +494,8 @@ async function handleVideo(song, message, voiceChannel, playlist = false) {
     const queueing = new EmbedBuilder()
       .setTitle(`📌 Queuein' up`)
       .setColor('#4FDFED')
-      .setThumbnail(song.thumbnail || fallbackThumbnail)
       .setDescription(`\n**${song.title}**`)
+      .setImage(song.thumbnail || fallbackThumbnail)
       .setFooter({
         text: `queue'd by ${message.member.displayName}`,
         iconURL: message.member.user.displayAvatarURL(),
@@ -500,38 +503,13 @@ async function handleVideo(song, message, voiceChannel, playlist = false) {
 
     await message.channel.send({ embeds: [queueing] });
   }
+
+  if (loadingMessage) {
+    await loadingMessage.delete().catch(() => null);
+  }
 }
 
 function attachPlayerListeners(guild, serverQueue) {
-  serverQueue.connection.on('stateChange', (_, newState) => {
-    console.log(`Voice connection state: ${newState.status}`);
-  });
-
-  serverQueue.connection.on(VoiceConnectionStatus.Disconnected, async (_, newState) => {
-    if (serverQueue.destroyed) {
-      return;
-    }
-
-    try {
-      if (newState.reason === VoiceConnectionDisconnectReason.WebSocketClose && newState.closeCode === 4014) {
-        await entersState(serverQueue.connection, VoiceConnectionStatus.Connecting, 5_000);
-        return;
-      }
-
-      await Promise.race([
-        entersState(serverQueue.connection, VoiceConnectionStatus.Signalling, 5_000),
-        entersState(serverQueue.connection, VoiceConnectionStatus.Connecting, 5_000),
-      ]);
-    } catch (error) {
-      clearIdleTimeout(serverQueue);
-      cleanupPlaybackProcess(serverQueue);
-      serverQueue.destroyed = true;
-      serverQueue.connection.destroy();
-      queue.delete(guild.id);
-      console.log('Voice connection dropped and could not recover.', error);
-    }
-  });
-
   serverQueue.player.on(AudioPlayerStatus.Idle, async () => {
     serverQueue.songs.shift();
     cleanupPlaybackProcess(serverQueue);
@@ -597,6 +575,12 @@ async function playSong(guild, song) {
       stdio: ['ignore', 'pipe', 'pipe'],
     });
 
+    ytDlp.stdout.on('error', (error) => {
+      if (error.code !== 'EPIPE') {
+        console.error(`yt-dlp stdout error: ${error.message}`);
+      }
+    });
+
     ytDlp.stderr.on('data', (chunk) => {
       const message = chunk.toString().trim();
       if (message) {
@@ -632,6 +616,12 @@ async function playSong(guild, song) {
         stdio: ['pipe', 'pipe', 'pipe'],
       }
     );
+
+    ffmpeg.stdin.on('error', (error) => {
+      if (error.code !== 'EPIPE') {
+        console.error(`ffmpeg stdin error: ${error.message}`);
+      }
+    });
 
     ytDlp.stdout.pipe(ffmpeg.stdin);
 
@@ -693,10 +683,23 @@ function normalizeSong(video) {
   }
 
   return {
+    metadataLoaded: Boolean(video.metadataLoaded),
     title: video.title,
     url,
     thumbnail: video.thumbnail || pickThumbnail(video.thumbnails) || fallbackThumbnail,
   };
+}
+
+function shouldRefreshSongMetadata(song) {
+  if (!song?.url || !isYouTubeWatchUrl(song.url)) {
+    return false;
+  }
+
+  if (song.metadataLoaded) {
+    return false;
+  }
+
+  return !song.title || song.title === 'YouTube audio' || song.title === song.url || !song.thumbnail || song.thumbnail === fallbackThumbnail;
 }
 
 async function resolveVideoMetadata(url) {
