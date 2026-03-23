@@ -912,6 +912,8 @@ async function createSongResource(serverQueue, song) {
 function spawnYtDlpProcess(serverQueue, url) {
   const ytDlpArgs = [
     url,
+    '-f',
+    'best[acodec!=none]/best',
     '-o',
     '-',
     '-N',
