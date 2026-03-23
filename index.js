@@ -31,6 +31,7 @@ const ytpl = require('ytpl');
 const prefix = '-';
 const token = process.env.COSMIC_BOT_TOKEN;
 const COOKIE = process.env.COOKIE;
+const COOKIE_FILE = process.env.COOKIE_FILE || process.env.YT_DLP_COOKIE_FILE;
 const ownerId = '216336551519584257';
 const fallbackThumbnail = 'https://cdn.iconscout.com/icon/free/png-256/youtube-85-226402.png';
 const idleTimeoutMs = 5 * 60 * 1000;
@@ -39,6 +40,11 @@ const ytDlpPath = fs.existsSync(localYtDlpPath)
   ? localYtDlpPath
   : youtubeDlExec.constants.YOUTUBE_DL_PATH;
 const youtubeDl = youtubeDlExec.create(ytDlpPath);
+const resolvedCookieFile = COOKIE_FILE
+  ? path.isAbsolute(COOKIE_FILE)
+    ? COOKIE_FILE
+    : path.resolve(__dirname, COOKIE_FILE)
+  : null;
 
 if (!token) {
   throw new Error('COSMIC_BOT_TOKEN is required.');
@@ -153,6 +159,7 @@ client.on('messageCreate', async (message) => {
         return;
       }
 
+      cleanupPlaybackProcess(serverQueue);
       serverQueue.player.stop(true);
       return;
     }
@@ -408,19 +415,10 @@ async function resolveSong(url, searchString, message) {
 
 async function handleVideo(song, message, voiceChannel, playlist = false) {
   let serverQueue = queue.get(message.guild.id);
-
-  if (shouldRefreshSongMetadata(song)) {
-    const metadata = await resolveVideoMetadata(song.url).catch(() => null);
-    if (metadata) {
-      song.title = metadata.title || song.title;
-      song.thumbnail = metadata.thumbnail || pickThumbnail(metadata.thumbnails) || song.thumbnail;
-      song.metadataLoaded = true;
-    }
-  }
-
   const loadingMessage = !playlist
     ? await message.channel.send({ embeds: [makeEmbed('*loading up your song...*', '#D09CFF')] })
     : null;
+  primeSongMetadata(song);
 
   if (!serverQueue) {
     const existingConnection = getVoiceConnection(message.guild.id);
@@ -451,6 +449,7 @@ async function handleVideo(song, message, voiceChannel, playlist = false) {
       ffmpegProcess: null,
       ytDlpProcess: null,
       timeoutId: null,
+      lastPlaybackError: null,
     };
 
     attachPlayerListeners(message.guild, serverQueue);
@@ -488,17 +487,14 @@ async function handleVideo(song, message, voiceChannel, playlist = false) {
   serverQueue.songs.push(song);
 
   if (serverQueue.player.state.status !== AudioPlayerStatus.Playing && serverQueue.player.state.status !== AudioPlayerStatus.Buffering) {
-    await playSong(message.guild, serverQueue.songs[0]);
-    if (loadingMessage) {
-      await loadingMessage.delete().catch(() => null);
-    }
+    await playSong(message.guild, serverQueue.songs[0], loadingMessage);
     return;
   }
 
   if (!playlist) {
     const queueing = new EmbedBuilder()
       .setTitle(`📌 Queuein' up`)
-      .setColor('#4FDFED')
+      .setColor('#D09CFF')
       .setDescription(`\n**${song.title}**`)
       .setImage(song.thumbnail || fallbackThumbnail)
       .setFooter({
@@ -550,29 +546,36 @@ function attachPlayerListeners(guild, serverQueue) {
   });
 }
 
-async function playSong(guild, song) {
+async function playSong(guild, song, statusMessage = null) {
   const serverQueue = queue.get(guild.id);
   if (!serverQueue || !song) {
     return;
   }
 
   clearIdleTimeout(serverQueue);
+  primeSongMetadata(song);
 
   let resource;
   try {
     cleanupPlaybackProcess(serverQueue);
+    serverQueue.lastPlaybackError = null;
     const ytDlpArgs = [
       song.url,
       '-f',
       'bestaudio/best',
       '-o',
       '-',
+      '-N',
+      '4',
       '--no-playlist',
+      '--no-progress',
       '--no-warnings',
       '--no-check-certificates',
     ];
 
-    if (COOKIE) {
+    if (resolvedCookieFile) {
+      ytDlpArgs.push('--cookies', resolvedCookieFile);
+    } else if (COOKIE) {
       ytDlpArgs.push('--add-header', `cookie:${COOKIE}`);
     }
 
@@ -589,6 +592,9 @@ async function playSong(guild, song) {
     ytDlp.stderr.on('data', (chunk) => {
       const message = chunk.toString().trim();
       if (message) {
+        if (message.includes('Sign in to confirm you’re not a bot') || message.includes("Sign in to confirm you're not a bot")) {
+          serverQueue.lastPlaybackError = 'YouTube blocked this video. Add a Netscape-format cookies file via `COOKIE_FILE` to keep playback working.';
+        }
         console.error(`yt-dlp: ${message}`);
       }
     });
@@ -600,9 +606,18 @@ async function playSong(guild, song) {
     });
 
     const ffmpegArgs = [
+      '-nostdin',
+      '-fflags',
+      'nobuffer',
+      '-flags',
+      'low_delay',
+      '-probesize',
+      '32k',
       '-i',
       'pipe:0',
       '-vn',
+      '-sn',
+      '-dn',
       '-loglevel',
       'error',
       '-f',
@@ -652,6 +667,11 @@ async function playSong(guild, song) {
     });
   } catch (error) {
     console.error(error);
+    if (statusMessage) {
+      await statusMessage.edit({
+        embeds: [makeEmbed('*I could not start playback for that video.*', '#D09CFF')],
+      }).catch(() => null);
+    }
     serverQueue.songs.shift();
     if (serverQueue.songs.length > 0) {
       await playSong(guild, serverQueue.songs[0]);
@@ -667,9 +687,37 @@ async function playSong(guild, song) {
   resource.volume?.setVolume(serverQueue.volume);
   serverQueue.player.play(resource);
 
+  if (serverQueue.songs[1]) {
+    primeSongMetadata(serverQueue.songs[1]);
+  }
+
+  try {
+    await entersState(serverQueue.player, AudioPlayerStatus.Playing, 15_000);
+  } catch (error) {
+    const playbackError = serverQueue.lastPlaybackError || '*I could not start playback for that video.*';
+    const playerStatus = serverQueue.player.state.status;
+    const playbackLooksHealthy =
+      !serverQueue.lastPlaybackError &&
+      playerStatus !== AudioPlayerStatus.Idle;
+
+    if (!playbackLooksHealthy) {
+      if (statusMessage) {
+        await statusMessage.edit({
+          embeds: [makeEmbed(playbackError, '#D09CFF')],
+        }).catch(() => null);
+      } else {
+        await serverQueue.textChannel.send({ embeds: [makeEmbed(playbackError, '#D09CFF')] }).catch(() => null);
+      }
+      console.error(error);
+      return;
+    }
+  }
+
+  await maybeHydrateSongMetadata(song, 1200);
+
   const playing = new EmbedBuilder()
     .setTitle(`🎶 Now Playing 🎶`)
-    .setColor('#79E676')
+    .setColor('#D09CFF')
     .setDescription(`\n**${song.title}**`)
     .setImage(song.thumbnail || fallbackThumbnail)
     .setFooter({
@@ -677,7 +725,13 @@ async function playSong(guild, song) {
       iconURL: serverQueue.requestedBy?.avatarURL || client.user?.displayAvatarURL(),
     });
 
-  await serverQueue.textChannel.send({ embeds: [playing] });
+  if (statusMessage) {
+    await statusMessage.edit({ embeds: [playing] }).catch(async () => {
+      await serverQueue.textChannel.send({ embeds: [playing] });
+    });
+  } else {
+    await serverQueue.textChannel.send({ embeds: [playing] });
+  }
   console.log(`${song.title} is now playing`);
 }
 
@@ -689,10 +743,56 @@ function normalizeSong(video) {
 
   return {
     metadataLoaded: Boolean(video.metadataLoaded),
+    metadataPromise: null,
     title: video.title,
     url,
     thumbnail: video.thumbnail || pickThumbnail(video.thumbnails) || fallbackThumbnail,
   };
+}
+
+function primeSongMetadata(song) {
+  if (!shouldRefreshSongMetadata(song) || song.metadataPromise) {
+    return song?.metadataPromise || null;
+  }
+
+  song.metadataPromise = resolveVideoMetadata(song.url)
+    .then((metadata) => {
+      if (!metadata) {
+        return null;
+      }
+
+      song.title = metadata.title || song.title;
+      song.thumbnail = metadata.thumbnail || pickThumbnail(metadata.thumbnails) || song.thumbnail;
+      song.metadataLoaded = true;
+      return metadata;
+    })
+    .catch(() => null)
+    .finally(() => {
+      song.metadataPromise = null;
+    });
+
+  return song.metadataPromise;
+}
+
+async function maybeHydrateSongMetadata(song, timeoutMs = 0) {
+  if (!song) {
+    return;
+  }
+
+  const metadataPromise = primeSongMetadata(song);
+  if (!metadataPromise) {
+    return;
+  }
+
+  if (!timeoutMs) {
+    await metadataPromise;
+    return;
+  }
+
+  await Promise.race([
+    metadataPromise,
+    new Promise((resolve) => setTimeout(resolve, timeoutMs)),
+  ]);
 }
 
 function shouldRefreshSongMetadata(song) {
@@ -736,6 +836,7 @@ async function resolveYtDlpInfo(url) {
   if (COOKIE) {
     addHeader.push(`cookie:${COOKIE}`);
   }
+  const cookieOptions = resolvedCookieFile ? { cookies: resolvedCookieFile } : {};
 
   try {
     return await youtubeDl(url, {
@@ -744,6 +845,7 @@ async function resolveYtDlpInfo(url) {
       noCheckCertificates: true,
       noWarnings: true,
       noPlaylist: true,
+      ...cookieOptions,
       ...(addHeader.length ? { addHeader } : {}),
     });
   } catch (error) {
